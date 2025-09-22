@@ -1,6 +1,40 @@
-# Backend – Endpoints Next.js + Supabase
+# Voltik – Backend de Facturas (Next.js + Supabase)
 
-Este backend implementa endpoints para ingesta de facturas (PDF), recepción por email (SendGrid Inbound), generación de URLs firmadas y exportación CSV. Usa Supabase (Postgres + Storage) según `supabase/SUPABASE_CONFIG.md`.
+Guía técnica del backend de facturas. Permite levantar el entorno local, entender la arquitectura, validar con pruebas E2E y desplegar.
+
+## Resumen
+- Framework: Next.js (App Router, rutas en `app/api/*`, runtime Node.js)
+- Backend data: Supabase (Postgres + Auth + Storage) – región EU
+- Email entrante: SendGrid Inbound (simulado en local)
+- Seguridad: RLS activas, mínimo privilegio, bucket privado, URLs firmadas
+- Node: 20+ (requerido)
+
+## Funcionalidad implementada
+- Subida de facturas PDF (≤ `LIMITE_PDF_MB` MB) vía web
+- Recepción de facturas por email (webhook Inbound) y delegación al upload
+- Almacenamiento del PDF y creación de `core.invoices` con estado `pending`
+- URLs firmadas (solo admin) y export CSV (solo admin)
+- Auditoría en `core.audit_logs` (con `meta` jsonb y `actor_user_id`)
+
+## Arquitectura y modelo de datos
+- Bucket de Storage: `invoices` (privado)
+- Convención de ruta: `YYYY/MM/{invoice_id}__{actor_user_id}.pdf`
+  - `actor_user_id` es el `sub` del JWT si la request está autenticada; si no, `customers.user_id`; si no existe, `system`.
+- Tablas (schema `core` – resumen):
+  - `customers(id, user_id, name, email, is_active, created_at, updated_at)`
+  - `invoices(id, customer_id, storage_object_path, …, status, created_at, updated_at)`
+  - `audit_logs(id, event, entity, entity_id, customer_id, actor_user_id, actor_role, level, meta, created_at)`
+- RLS: acceso admin (JWT con `app_metadata.role='admin'` o claim `admin=true`) o `service_role` (backend)
+
+## Estructura de carpetas
+- `app/api/upload/route.ts` → Subida PDF + insert invoice
+- `app/api/email/inbound/route.ts` → Inbound → delega en `/api/upload` (con fallback)
+- `app/api/files/signed-url/route.ts` → URL firmada (admin)
+- `app/api/export/csv/route.ts` → CSV (admin)
+- `lib/supabase.ts` → clientes Supabase, auth, helpers
+- `lib/logger.ts` → inserción `core.audit_logs`
+- `supabase/sql/*.sql` → SQL de utilidad (introspección)
+- `run-e2e-tests.sh` → runner E2E
 
 ## Requisitos
 - Node.js 20+ (recomendado; 18 está deprecado en supabase-js)
@@ -8,7 +42,7 @@ Este backend implementa endpoints para ingesta de facturas (PDF), recepción por
 - Dependencias: `@supabase/supabase-js`, `jose`
 
 ## Variables de Entorno
-Copia `.env.example` a `.env.local` y completa los valores.
+Fichero `.env.local`.
 
 Claves importantes:
 - `SUPABASE_SERVICE_ROLE_KEY`: sólo servidor (no exponer en cliente)
@@ -28,8 +62,8 @@ Claves importantes:
 
 - POST `/api/email/inbound`
   - Multipart SendGrid Inbound. Requiere cabecera `X-INBOUND-SECRET`.
-  - Extrae remitente y adjunto PDF, busca `customer` por email y delega en `/api/upload`.
-  - Respuesta 200: payload de `/api/upload`.
+  - Extrae remitente y adjunto PDF, busca `customer` por email y delega en `/api/upload` (con `X-INTERNAL-KEY`). Si el `fetch` interno falla, hace fallback directo (sube a Storage e inserta invoice `pending`).
+  - Respuesta 200: payload de `/api/upload` (o del fallback directo).
 
 - GET `/api/files/signed-url?path=YYYY/MM/{invoice_id}__{actor_user_id}.pdf[&expiresIn=60]`
   - Sólo admin (`Authorization: Bearer <admin JWT>`).
