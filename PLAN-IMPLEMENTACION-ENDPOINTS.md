@@ -244,15 +244,15 @@ curl -sS "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/audit_logs?select=event,entity,lev
 ---
 
 ## Checklist de Implementación (marcar al completar)
-- [ ] lib/supabase.ts creado con `getAdminClient`, `getBrowserClient`, `assertAdminFromAuthHeader`, `requireInternalKey`.
-- [ ] lib/logger.ts con `logAudit` robusto.
-- [ ] app/api/upload/route.ts con validaciones, subida a Storage e insert en `core.invoices`.
-- [ ] app/api/email/inbound/route.ts con validación secret, parsing, mapeo customer, delegación.
-- [ ] app/api/files/signed-url/route.ts admin-only, expiración ≤300s, sanitización de `path`.
-- [ ] app/api/export/csv/route.ts admin-only, CSV válido y descargable.
-- [ ] .env.example añadido con comentarios y placeholders.
-- [ ] README-backend.md con instrucciones, `curl` y notas de despliegue.
-- [ ] Pruebas E2E ejecutadas y verificación de `core.audit_logs`.
+- [x] lib/supabase.ts creado con `getAdminClient`, `getBrowserClient`, `assertAdminFromAuthHeader`, `requireInternalKey`.
+- [x] lib/logger.ts con `logAudit` robusto (usa `meta` jsonb y `entity` válidos).
+- [x] app/api/upload/route.ts con validaciones, subida a Storage e insert en `core.invoices` (`storage_object_path`).
+- [x] app/api/email/inbound/route.ts con validación secret, parsing, mapeo customer, delegación y fallback.
+- [x] app/api/files/signed-url/route.ts admin-only, expiración ≤300s, sanitización de `path` (relativo al bucket).
+- [x] app/api/export/csv/route.ts admin-only, CSV válido y descargable (columnas reales de esquema).
+- [x] .env.example añadido con comentarios y placeholders.
+- [x] README-backend.md con instrucciones, `curl`, runner E2E y notas de despliegue.
+- [x] Pruebas E2E ejecutadas y verificación de `core.audit_logs`.
 
 ---
 
@@ -261,4 +261,3 @@ curl -sS "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/audit_logs?select=event,entity,lev
 - Instalar dependencias (`@supabase/supabase-js`, `jose`).
 - Configurar variables en `.env.local` y Vercel (no exponer service role al cliente).
 - Probar localmente con los `curl` y validar logs y permisos.
-
