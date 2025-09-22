@@ -1,0 +1,227 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* VOLTIK DESIGN SYSTEM - Colors based on original voltik.es variables */
+
+@layer base {
+  :root {
+    /* == VOLTIK BRAND COLORS (original palette) == */
+    --voltik-primary: 75 33% 85%;       /* #DDE6D5 */
+    --voltik-secondary: 46 71% 86%;     /* #F4E7C1 */
+    --voltik-neutral-light: 0 0% 99%;   /* #FCFCFC */
+    --voltik-neutral-dark: 0 0% 31%;    /* #4F4F4F */
+    --voltik-background: 0 0% 100%;     /* #FFFFFF */
+    --voltik-error: 0 43% 70%;          /* #C97E7E */
+    --voltik-text: 0 0% 10%;            /* #1A1A1A */
+    --voltik-success: 142 76% 36%;     /* #16A34A */
+    --voltik-warning: 45 93% 47%;      /* #FBBF24 */
+    --voltik-info: 217 91% 60%;        /* #60A5FA */
+
+      /* Variaciones derivadas (permitidas) */
+    --voltik-primary-light: 75, 33%, 92%;
+    --voltik-primary-dark: 75, 33%, 75%;
+    --voltik-secondary-light: 46, 71%, 93%;
+    --voltik-secondary-dark: 46, 71%, 76%;
+
+    /* == DESIGN SYSTEM MAPPING == */
+    --background: var(--voltik-background);
+    --foreground: var(--voltik-text);
+    
+    --card: var(--voltik-neutral-light);
+    --card-foreground: var(--voltik-text);
+    
+    --popover: var(--voltik-background);
+    --popover-foreground: var(--voltik-text);
+    
+    --primary: var(--voltik-primary);
+    --primary-foreground: var(--voltik-text);
+    
+    --secondary: var(--voltik-secondary);
+    --secondary-foreground: var(--voltik-text);
+    
+    --muted: var(--voltik-neutral-light);
+    --muted-foreground: var(--voltik-neutral-dark);
+    
+    --accent: var(--voltik-primary);
+    --accent-foreground: var(--voltik-text);
+    
+    --destructive: var(--voltik-error);
+    --destructive-foreground: var(--voltik-background);
+    
+    --border: 75 33% 92%;               /* lighter primary */
+    --input: 75 33% 92%;
+    --ring: var(--voltik-primary);
+    
+    --radius: 0.75rem;
+    
+    /* == SPACING TOKENS (8pt system) == */
+    --space-1: 0.25rem;  /* 4px  */
+    --space-2: 0.5rem;   /* 8px  */
+    --space-3: 1rem;     /* 16px */
+    --space-4: 1.5rem;   /* 24px */
+    --space-5: 2rem;     /* 32px */
+    --space-6: 3rem;     /* 48px */
+    --space-7: 4rem;     /* 64px */
+    --space-8: 6rem;     /* 96px */
+    --space-9: 8rem;     /* 128px */
+    
+    /* == TYPOGRAPHY SCALE == */
+    --text-xs: 0.75rem;      /* 12px */
+    --text-sm: 0.875rem;     /* 14px */
+    --text-base: 1rem;       /* 16px */
+    --text-lg: 1.125rem;     /* 18px */
+    --text-xl: 1.25rem;      /* 20px */
+    --text-2xl: 1.5rem;      /* 24px */
+    --text-3xl: 1.875rem;    /* 30px */
+    --text-4xl: 2.25rem;     /* 36px */
+    --text-5xl: 3rem;        /* 48px */
+    --text-6xl: 3.75rem;     /* 60px */
+    
+    /* == SHADOWS == */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    
+    /* == ANIMATION == */
+    --transition-fast: 0.15s ease;
+    --transition-base: 0.2s ease;
+    --transition-slow: 0.3s ease;
+    
+    /* == Z-INDEX SCALE == */
+    --z-below: -1;
+    --z-default: 1;
+    --z-overlay: 10;
+    --z-modal: 100;
+    --z-toast: 1000;
+  }
+
+  .dark {
+    --background: var(--voltik-text);
+    --foreground: var(--voltik-neutral-light);
+    --card: 0 0% 15%;
+    --card-foreground: var(--voltik-neutral-light);
+    --popover: 0 0% 15%;
+    --popover-foreground: var(--voltik-neutral-light);
+    --primary: var(--voltik-primary);
+    --primary-foreground: var(--voltik-text);
+    --secondary: 0 0% 20%;
+    --secondary-foreground: var(--voltik-neutral-light);
+    --muted: 0 0% 20%;
+    --muted-foreground: var(--voltik-neutral-dark);
+    --accent: var(--voltik-secondary);
+    --accent-foreground: var(--voltik-text);
+    --destructive: var(--voltik-error);
+    --destructive-foreground: var(--voltik-background);
+    --border: 0 0% 25%;
+    --input: 0 0% 25%;
+    --ring: var(--voltik-primary);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Manrope', sans-serif;
+    line-height: 1.6;
+    scroll-behavior: smooth;
+  }
+  
+  /* Typography Scale */
+  h1 { @apply text-4xl md:text-5xl font-bold leading-tight; }
+  h2 { @apply text-2xl md:text-3xl font-semibold leading-tight; }
+  h3 { @apply text-xl md:text-2xl font-semibold leading-tight; }
+  h4 { @apply text-lg md:text-xl font-medium leading-tight; }
+  h5 { @apply text-base md:text-lg font-medium leading-tight; }
+  h6 { @apply text-sm md:text-base font-medium leading-tight; }
+  
+  /* Focus styles for accessibility */
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+  
+  /* Smooth animations */
+  * {
+    transition: color var(--transition-fast), 
+                background-color var(--transition-fast),
+                border-color var(--transition-fast),
+                transform var(--transition-base),
+                opacity var(--transition-fast);
+  }
+}
+
+@layer components {
+  /* Voltik component utilities */
+  .voltik-container {
+    @apply max-w-6xl mx-auto px-2 sm:px-4 lg:px-8;
+  }
+  
+  .voltik-section {
+    @apply py-12 md:py-16 lg:py-20;
+  }
+  
+  .voltik-card {
+    @apply bg-card rounded-xl p-6 md:p-8 shadow-md hover:shadow-lg transition-shadow w-full;
+  }
+  
+  .voltik-grid {
+    @apply grid gap-6 md:gap-8;
+  }
+  
+  .voltik-grid-2 {
+    @apply voltik-grid md:grid-cols-2;
+  }
+  
+  .voltik-grid-3 {
+    @apply voltik-grid lg:grid-cols-3;
+  }
+  
+  .voltik-grid-3-centered {
+    @apply voltik-grid lg:grid-cols-3;
+  }
+  
+  .voltik-grid-3-centered > :nth-child(3n) {
+    @apply lg:col-start-2;
+  }
+  
+  .voltik-grid-4 {
+    @apply voltik-grid md:grid-cols-2 lg:grid-cols-4;
+  }
+  
+  /* Button variants */
+  .btn-voltik {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-lg font-semibold text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+  
+  .btn-primary {
+    @apply btn-voltik bg-foreground text-background hover:bg-foreground/90 focus:ring-foreground;
+  }
+  
+  .btn-secondary {
+    @apply btn-voltik bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary;
+  }
+  
+  .btn-outline {
+    @apply btn-voltik border-2 border-foreground text-foreground hover:bg-foreground hover:text-background focus:ring-foreground;
+  }
+  
+  /* Lead text */
+  .lead {
+    @apply text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto;
+  }
+  
+  /* Hero background */
+  .hero-bg {
+    @apply bg-primary/20;
+    background-image: 
+      radial-gradient(circle at 25% 25%, hsl(var(--primary)) 0%, transparent 50%),
+      radial-gradient(circle at 75% 75%, hsl(var(--secondary)) 0%, transparent 50%);
+  }
+}
