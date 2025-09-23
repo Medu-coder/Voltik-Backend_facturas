@@ -1,15 +1,19 @@
+import '@/styles.css'
+import type { ReactNode } from 'react'
+import { ToasterProvider } from '@/components/Toaster'
+
 export const metadata = {
-  title: 'Backend API',
-  description: 'Voltik invoices backend API',
+  title: 'Voltik · Facturas',
+  description: 'MVP de ingesta y consulta de facturas',
 }
 
-export default function RootLayout(props: any) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es">
       <body>
-        {props.children}
+        <ToasterProvider>
+          {children}
+        </ToasterProvider>
       </body>
     </html>
-  )
-}
-
+  )}

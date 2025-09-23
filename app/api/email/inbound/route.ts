@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { getAdminClient, HttpError } from '../../../../lib/supabase'
 import { logAudit } from '../../../../lib/logger'
+import { ensureCustomer } from '@/lib/customers'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -22,6 +23,21 @@ function extractEmail(raw: string | null): string | null {
   const email = m.toLowerCase()
   if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return email
   return null
+}
+
+function extractName(raw: string | null, fallbackEmail?: string | null): string {
+  if (raw) {
+    const trimmed = raw.trim()
+    const nameMatch = trimmed.match(/^"?([^<>"]+)"?\s*<[^>]+>/)
+    if (nameMatch?.[1]) return nameMatch[1].trim()
+    const withoutEmail = trimmed.replace(/<[^>]+>/, '').trim()
+    if (withoutEmail) return withoutEmail
+  }
+  if (fallbackEmail) {
+    const local = fallbackEmail.split('@')[0]
+    if (local) return local
+  }
+  return 'Cliente'
 }
 
 function findPdfAttachment(form: FormData): Blob | null {
@@ -71,16 +87,13 @@ export async function POST(req: NextRequest) {
       throw new HttpError(400, 'Missing sender email')
     }
 
-    // Find customer by email
-    const { data: customer, error: custErr } = await admin
-      .from('customers')
-      .select('id,email,user_id')
-      .eq('email', fromEmail)
-      .maybeSingle()
-    if (custErr) throw new HttpError(500, `Customer lookup failed: ${custErr.message}`)
-    if (!customer) {
-      await logAudit({ event: 'email_inbound_customer_not_found', entity: 'system', level: 'warn', meta: { from: fromEmail } })
-      throw new HttpError(404, 'Customer not found')
+    const customerName = extractName(fromHeader, fromEmail)
+    let customer
+    try {
+      customer = await ensureCustomer(admin, { name: customerName, email: fromEmail, userId: process.env.ADMIN_USER_ID || null })
+    } catch (err: any) {
+      await logAudit({ event: 'email_inbound_customer_error', entity: 'system', level: 'error', meta: { error: err?.message || String(err) } })
+      throw new HttpError(400, err?.message || 'Customer resolution failed')
     }
 
     // Delegate to /api/upload
@@ -91,7 +104,8 @@ export async function POST(req: NextRequest) {
     const buf = await (pdf as any).arrayBuffer()
     const cloned = new Blob([buf], { type: 'application/pdf' })
     fd.set('file', cloned, fileName)
-    fd.set('customer_id', customer.id)
+    fd.set('customer_name', customer.name || customerName)
+    fd.set('customer_email', customer.email || fromEmail)
 
     const internalKey = process.env.INTERNAL_API_SECRET
     if (!internalKey) throw new Error('Missing INTERNAL_API_SECRET env var')
@@ -118,10 +132,9 @@ export async function POST(req: NextRequest) {
     } catch (fetchErr: any) {
       // Fallback: perform upload directly if internal fetch fails
       await logAudit({ event: 'email_inbound_fallback', entity: 'system', level: 'warn', meta: { reason: String(fetchErr?.message || fetchErr) } })
-      const admin = getAdminClient()
       const invoiceId = crypto.randomUUID()
       const now = new Date(); const y = now.getUTCFullYear(); const m = String(now.getUTCMonth()+1).padStart(2,'0')
-      const actorId = (customer.user_id && /[0-9a-f-]{36}/i.test(customer.user_id)) ? customer.user_id : 'system'
+      const actorId = (customer.user_id && /[0-9a-f-]{36}/i.test(customer.user_id)) ? customer.user_id : (process.env.ADMIN_USER_ID || 'system')
       const storagePath = `${y}/${m}/${invoiceId}__${actorId}.pdf`
       const { error: upErr } = await admin.storage.from('invoices').upload(storagePath, cloned, { contentType: 'application/pdf', upsert: false, metadata: { customer_id: customer.id, actor_user_id: actorId } as any })
       if (upErr) {

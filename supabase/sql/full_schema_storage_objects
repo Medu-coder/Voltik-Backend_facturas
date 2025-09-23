@@ -1,0 +1,50 @@
+create table storage.objects (
+  id uuid not null default gen_random_uuid (),
+  bucket_id text null,
+  name text null,
+  owner uuid null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  last_accessed_at timestamp with time zone null default now(),
+  metadata jsonb null,
+  path_tokens ARRAY GENERATED ALWAYS as (string_to_array(name, '/'::text)) STORED null,
+  version text null,
+  owner_id text null,
+  user_metadata jsonb null,
+  level integer null,
+  constraint objects_pkey primary key (id),
+  constraint objects_bucketId_fkey foreign KEY (bucket_id) references storage.buckets (id)
+) TABLESPACE pg_default;
+
+create unique INDEX IF not exists bucketid_objname on storage.objects using btree (bucket_id, name) TABLESPACE pg_default;
+
+create index IF not exists name_prefix_search on storage.objects using btree (name text_pattern_ops) TABLESPACE pg_default;
+
+create index IF not exists idx_objects_bucket_id_name on storage.objects using btree (bucket_id, name collate "C") TABLESPACE pg_default;
+
+create unique INDEX IF not exists idx_name_bucket_level_unique on storage.objects using btree (name collate "C", bucket_id, level) TABLESPACE pg_default;
+
+create unique INDEX IF not exists objects_bucket_id_level_idx on storage.objects using btree (bucket_id, level, name collate "C") TABLESPACE pg_default;
+
+create index IF not exists idx_objects_lower_name on storage.objects using btree (
+  (path_tokens[level]),
+  lower(name) text_pattern_ops,
+  bucket_id,
+  level
+) TABLESPACE pg_default;
+
+create trigger objects_delete_cleanup
+after DELETE on storage.objects REFERENCING OLD table as deleted for EACH STATEMENT
+execute FUNCTION storage.objects_delete_cleanup ();
+
+create trigger objects_insert_create_prefix BEFORE INSERT on storage.objects for EACH row
+execute FUNCTION storage.objects_insert_prefix_trigger ();
+
+create trigger objects_update_cleanup
+after
+update on storage.objects REFERENCING OLD table as old_rows NEW table as new_rows for EACH STATEMENT
+execute FUNCTION storage.objects_update_cleanup ();
+
+create trigger update_objects_updated_at BEFORE
+update on storage.objects for EACH row
+execute FUNCTION storage.update_updated_at_column ();

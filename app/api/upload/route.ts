@@ -1,111 +1,71 @@
-import { NextRequest } from 'next/server'
-import { getAdminClient, HttpError, getClaimsFromAuthHeader } from '../../../lib/supabase'
-import { logAudit } from '../../../lib/logger'
+import { NextResponse } from 'next/server'
+import { supabaseRoute } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
+import { ensureCustomer } from '@/lib/customers'
 
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
-
-function getLimitBytes(): number {
-  const mb = Number(process.env.LIMITE_PDF_MB || 10)
-  return Math.max(1, Math.floor(mb)) * 1024 * 1024
+function parseBearer(h?: string | null) {
+  if (!h) return null
+  const [scheme, token] = h.split(' ')
+  if (!scheme || !token || scheme.toLowerCase() !== 'bearer') return null
+  return token
 }
 
-function isUUID(v: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
-}
+export async function POST(req: Request) {
+  const supabase = supabaseRoute()
+  const authHeader = req.headers.get('authorization') || req.headers.get('Authorization')
+  const bearer = parseBearer(authHeader)
+  const { data: { user } } = bearer ? await supabase.auth.getUser(bearer) : await supabase.auth.getUser()
+  const internalKey = req.headers.get('x-internal-key') || req.headers.get('X-INTERNAL-KEY')
+  const secret = process.env.INTERNAL_API_SECRET
+  const adminEmails = (process.env.ADMIN_EMAIL || process.env.ADMIN_EMAILS || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean)
+  const role = (user?.app_metadata as any)?.role
+  const isAdminUser = !!user && (role === 'admin' || (user.email && adminEmails.includes(user.email.toLowerCase())))
+  const isInternal = secret && internalKey === secret
+  if (!user && !isInternal) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (user && !isAdminUser) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-function isPdfFile(file: File): boolean {
-  const ct = (file.type || '').toLowerCase()
-  if (ct === 'application/pdf') return true
-  if (ct === 'application/octet-stream' && file.name?.toLowerCase().endsWith('.pdf')) return true
-  return false
-}
+  const actingUserId = user?.id || process.env.ADMIN_USER_ID || 'admin'
 
-function ymd(date = new Date()): { y: number; m: number } {
-  return { y: date.getUTCFullYear(), m: date.getUTCMonth() + 1 }
-}
+  const form = await req.formData()
+  const file = form.get('file') as File | null
+  const customer_name = String(form.get('customer_name') || '')
+  const customer_email = String(form.get('customer_email') || '')
+  if (!file) return NextResponse.json({ error: 'Missing file' }, { status: 400 })
+  if (!customer_name.trim()) return NextResponse.json({ error: 'Missing customer_name' }, { status: 400 })
+  if (!customer_email.trim()) return NextResponse.json({ error: 'Missing customer_email' }, { status: 400 })
+  if (file.type !== 'application/pdf') return NextResponse.json({ error: 'Invalid mime' }, { status: 400 })
+  if (file.size > 10 * 1024 * 1024) return NextResponse.json({ error: 'Too large' }, { status: 400 })
 
-export async function POST(req: NextRequest) {
-  const admin = getAdminClient()
+  const invoiceId = crypto.randomUUID()
+  const path = `${actingUserId}/${invoiceId}.pdf`
 
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  const bucket = process.env.STORAGE_INVOICES_BUCKET || 'invoices'
+
+  const admin = createClient(url, serviceKey, { db: { schema: 'core' } })
+
+  let customer
   try {
-    const contentType = req.headers.get('content-type') || ''
-    if (!contentType.includes('multipart/form-data')) {
-      throw new HttpError(400, 'Content-Type must be multipart/form-data')
-    }
-
-    const form = await req.formData()
-    const file = form.get('file') as File | null
-    const customerId = String(form.get('customer_id') || '')
-
-    if (!file) throw new HttpError(400, 'Missing file')
-    if (!customerId) throw new HttpError(400, 'Missing customer_id')
-    if (!isUUID(customerId)) throw new HttpError(400, 'customer_id must be a valid UUID')
-
-    const limit = getLimitBytes()
-    if (file.size > limit) throw new HttpError(413, 'File too large')
-    if (!isPdfFile(file)) throw new HttpError(415, 'Unsupported media type (PDF required)')
-
-    const claims = await getClaimsFromAuthHeader(req)
-
-    // Validate customer exists
-    const { data: cust, error: custErr } = await admin
-      .from('customers')
-      .select('id,user_id')
-      .eq('id', customerId)
-      .maybeSingle()
-    if (custErr) throw new HttpError(500, `Customer lookup failed: ${custErr.message}`)
-    if (!cust) throw new HttpError(404, 'Customer not found')
-
-    const invoiceId = crypto.randomUUID()
-    const { y, m } = ymd()
-    const actorUserId = (claims?.sub && isUUID(String(claims.sub))) ? String(claims.sub) : (cust?.user_id && isUUID(String(cust.user_id)) ? String(cust.user_id) : 'system')
-    const path = `${y}/${String(m).padStart(2, '0')}/${invoiceId}__${actorUserId}.pdf`
-
-    // Log request now that we know actor and path
-    await logAudit({
-      event: 'invoice_upload_requested',
-      entity: 'invoice',
-      customer_id: customerId,
-      actor_user_id: actorUserId,
-      meta: { customer_id: customerId, filename: (file as any).name, size: file.size, storage_path: path }
-    })
-
-    // Upload file to Storage
-    const { error: upErr } = await admin.storage
-      .from('invoices')
-      .upload(path, file, { contentType: 'application/pdf', upsert: false, metadata: { customer_id: customerId, actor_user_id: actorUserId } as any })
-    if (upErr) {
-      await logAudit({ event: 'invoice_upload_failed', entity: 'invoice', level: 'error', customer_id: customerId, actor_user_id: actorUserId, meta: { step: 'upload', error: upErr.message } })
-      throw new HttpError(500, `Storage upload failed: ${upErr.message}`)
-    }
-
-    // Insert invoice row (pending)
-    const { error: insErr } = await admin
-      .from('invoices')
-      .insert({ id: invoiceId, customer_id: customerId, status: 'pending', storage_object_path: path })
-    if (insErr) {
-      // best-effort cleanup of uploaded file
-      await admin.storage.from('invoices').remove([path]).catch(() => {})
-      await logAudit({ event: 'invoice_upload_failed', entity: 'invoice', level: 'error', customer_id: customerId, actor_user_id: actorUserId, meta: { step: 'insert', error: insErr.message } })
-      throw new HttpError(500, `DB insert failed: ${insErr.message}`)
-    }
-
-    await logAudit({ event: 'invoice_upload_success', entity: 'invoice', entity_id: invoiceId, customer_id: customerId, actor_user_id: actorUserId, meta: { storage_path: path } })
-
-    return new Response(JSON.stringify({ invoice_id: invoiceId, storage_path: path }), {
-      status: 201,
-      headers: { 'content-type': 'application/json; charset=utf-8' }
-    })
+    customer = await ensureCustomer(admin, { name: customer_name, email: customer_email, userId: actingUserId })
   } catch (err: any) {
-    const status = err instanceof HttpError ? err.status : 500
-    const message = err instanceof HttpError ? err.message : 'Internal server error'
-    if (!(err instanceof HttpError)) {
-      await logAudit({ event: 'invoice_upload_failed', entity: 'invoice', level: 'error', meta: { step: 'unhandled', error: String(err?.message || err) } })
-    }
-    return new Response(JSON.stringify({ error: message }), {
-      status,
-      headers: { 'content-type': 'application/json; charset=utf-8' }
-    })
+    return NextResponse.json({ error: err.message || 'Customer resolution failed' }, { status: 400 })
   }
+
+  const arrayBuffer = await file.arrayBuffer()
+  const { error: upErr } = await admin.storage.from(bucket).upload(path, new Uint8Array(arrayBuffer), {
+    contentType: 'application/pdf',
+    upsert: false,
+  })
+  if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 })
+
+  const { error: insErr } = await admin.from('invoices').insert({
+    id: invoiceId,
+    customer_id: customer.id,
+    storage_object_path: path,
+    status: 'pending',
+  })
+  if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 })
+
+  return NextResponse.json({ ok: true, id: invoiceId })
 }
