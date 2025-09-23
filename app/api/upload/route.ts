@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseRoute } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { ensureCustomer } from '@/lib/customers'
+import { buildInvoiceStoragePath } from '@/lib/storage'
 
 function parseBearer(h?: string | null) {
   if (!h) return null
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
   if (file.size > 10 * 1024 * 1024) return NextResponse.json({ error: 'Too large' }, { status: 400 })
 
   const invoiceId = crypto.randomUUID()
-  const path = `${actingUserId}/${invoiceId}.pdf`
+
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -51,6 +52,8 @@ export async function POST(req: Request) {
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Customer resolution failed' }, { status: 400 })
   }
+
+  const { path } = buildInvoiceStoragePath(invoiceId, customer.email || customer_email)
 
   const arrayBuffer = await file.arrayBuffer()
   const { error: upErr } = await admin.storage.from(bucket).upload(path, new Uint8Array(arrayBuffer), {

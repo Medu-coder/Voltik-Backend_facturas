@@ -43,6 +43,7 @@ Accede a http://localhost:3000/login, introduce el email del admin y completa el
 - **Subida de facturas (manual)**
   - Formulario en `/upload`: pide nombre del cliente, email y PDF (≤10 MB).
   - Si el cliente no existía, se crea usando el email. Si existía, se actualiza el nombre.
+  - El PDF se guarda en Storage con estructura `año/mes/email-normalizado/invoiceId.pdf` (ej. `2025/09/cliente_demo_at_example_com/UUID.pdf`).
 - **Dashboard**
   - `/dashboard` muestra todas las facturas con filtros por fecha, descarga de CSV y acceso al detalle.
 - **Detalle de factura**
@@ -77,4 +78,3 @@ Accede a http://localhost:3000/login, introduce el email del admin y completa el
 - Las rutas server usan `SERVICE_ROLE_KEY` únicamente en backend (nunca en cliente).
 - Storage es privado y las descargas se hacen mediante URL firmada corta (`STORAGE_SIGNED_URL_TTL_SECS`).
 - Existen endpoints de depuración para desarrollo (`/api/debug/session`, `/api/debug/customers`) protegidos por `INTERNAL_API_SECRET` o por rol admin.
-

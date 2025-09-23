@@ -2,6 +2,7 @@ import { requireAdmin } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import JsonViewer from '@/components/JsonViewer'
+import { formatDate } from '@/lib/date'
 
 export default async function InvoiceDetail({ params }: { params: { id: string } }) {
   await requireAdmin()
@@ -36,8 +37,8 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
         <dl className="grid">
           <div><dt>Cliente</dt><dd>{customer.name || customer.email || (data as any).customer_id}</dd></div>
           <div><dt>Email</dt><dd>{customer.email || '—'}</dd></div>
-          <div><dt>Periodo</dt><dd>{fmt((data as any).billing_start_date)} — {fmt((data as any).billing_end_date)}</dd></div>
-          <div><dt>Fecha emisión</dt><dd>{fmt((data as any).issue_date)}</dd></div>
+          <div><dt>Periodo</dt><dd>{formatDate((data as any).billing_start_date)} — {formatDate((data as any).billing_end_date)}</dd></div>
+          <div><dt>Fecha emisión</dt><dd>{formatDate((data as any).issue_date)}</dd></div>
           <div><dt>Estado</dt><dd><span className={`badge badge-${badge(data.status)}`}>{data.status}</span></dd></div>
           <div><dt>Total</dt><dd>{money((data as any).total_amount_eur)}</dd></div>
           <div><dt>CUPS</dt><dd>{(data as any).cups || '—'}</dd></div>
@@ -55,7 +56,6 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
   )
 }
 
-function fmt(d?: string | null) { return d ? new Date(d).toLocaleDateString() : '—' }
 function money(n?: number | null) {
   if (n == null) return '—'
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(n)

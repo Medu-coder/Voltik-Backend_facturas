@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { getAdminClient, HttpError } from '../../../../lib/supabase'
 import { logAudit } from '../../../../lib/logger'
 import { ensureCustomer } from '@/lib/customers'
+import { buildInvoiceStoragePath } from '@/lib/storage'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -134,8 +135,8 @@ export async function POST(req: NextRequest) {
       await logAudit({ event: 'email_inbound_fallback', entity: 'system', level: 'warn', meta: { reason: String(fetchErr?.message || fetchErr) } })
       const invoiceId = crypto.randomUUID()
       const now = new Date(); const y = now.getUTCFullYear(); const m = String(now.getUTCMonth()+1).padStart(2,'0')
+      const { path: storagePath } = buildInvoiceStoragePath(invoiceId, customer.email || fromEmail, now)
       const actorId = (customer.user_id && /[0-9a-f-]{36}/i.test(customer.user_id)) ? customer.user_id : (process.env.ADMIN_USER_ID || 'system')
-      const storagePath = `${y}/${m}/${invoiceId}__${actorId}.pdf`
       const { error: upErr } = await admin.storage.from('invoices').upload(storagePath, cloned, { contentType: 'application/pdf', upsert: false, metadata: { customer_id: customer.id, actor_user_id: actorId } as any })
       if (upErr) {
         await logAudit({ event: 'email_inbound_failed', entity: 'system', level: 'error', meta: { step: 'fallback_upload', error: upErr.message } })

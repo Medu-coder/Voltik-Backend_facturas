@@ -3,11 +3,7 @@ import { notFound } from 'next/navigation'
 import { requireAdmin } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import InvoiceTable from '@/components/InvoiceTable'
-
-function fmtDate(value?: string | null) {
-  if (!value) return '—'
-  try { return new Date(value).toLocaleDateString() } catch { return value }
-}
+import { formatDate } from '@/lib/date'
 
 export default async function CustomerDetail({ params }: { params: { id: string } }) {
   await requireAdmin()
@@ -54,7 +50,7 @@ export default async function CustomerDetail({ params }: { params: { id: string 
         <dl className="grid">
           <div><dt>Nombre</dt><dd>{customer.name || '—'}</dd></div>
           <div><dt>Email</dt><dd>{customer.email || '—'}</dd></div>
-          <div><dt>Creado</dt><dd>{fmtDate(customer.created_at)}</dd></div>
+          <div><dt>Creado</dt><dd>{formatDate(customer.created_at)}</dd></div>
           <div><dt>Nº de facturas</dt><dd>{invoices?.length || 0}</dd></div>
         </dl>
       </section>
@@ -63,4 +59,3 @@ export default async function CustomerDetail({ params }: { params: { id: string 
     </main>
   )
 }
-

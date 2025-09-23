@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import { formatDate } from '@/lib/date'
 
 type Row = {
   id: string
@@ -37,7 +38,7 @@ export default function InvoiceTable({ invoices }: { invoices: Row[] }) {
               <tr key={r.id}>
                 <td><code>{r.id.slice(0, 8)}</code></td>
                 <td>{r.customer_name || '—'}</td>
-                <td>{fmtDate(r.date_start)} — {fmtDate(r.date_end)}</td>
+                <td>{formatDate(r.date_start)} — {formatDate(r.date_end)}</td>
                 <td><span className={`badge badge-${badge(r.status)}`}>{r.status}</span></td>
                 <td style={{ textAlign: 'right' }}>{fmtMoney(r.total)}</td>
                 <td><Link className="button" href={`/invoices/${r.id}`}>Ver</Link></td>
@@ -50,10 +51,6 @@ export default function InvoiceTable({ invoices }: { invoices: Row[] }) {
   )
 }
 
-function fmtDate(d?: string | null) {
-  if (!d) return '—'
-  try { return new Date(d).toLocaleDateString() } catch { return d as string }
-}
 function fmtMoney(n?: number | null) {
   if (n == null) return '—'
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(n)
@@ -68,4 +65,3 @@ function badge(status?: string | null) {
     default: return 'neutral'
   }
 }
-

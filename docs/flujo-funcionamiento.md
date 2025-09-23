@@ -26,7 +26,7 @@ El MVP opera con un único usuario administrador capaz de gestionar todos los cl
 2. `ensureCustomer()` busca el email en `core.customers`:
    - Si existe, reutiliza el registro y actualiza el nombre en caso de haber cambiado.
    - Si no existe, crea el cliente con `user_id = ADMIN_USER_ID` (o `session.user.id`).
-3. Se sube el PDF a Storage: `invoices/<admin>/<uuid>.pdf`.
+3. Se sube el PDF a Storage siguiendo la estructura `invoices/<año>/<mes>/<email_normalizado>/<uuid>.pdf` (ej. `invoices/2025/09/cliente_demo_at_example_com/UUID.pdf`).
 4. Se inserta la factura en `core.invoices` con `status='pending'`.
 
 ## Integraciones externas
@@ -62,4 +62,3 @@ El MVP opera con un único usuario administrador capaz de gestionar todos los cl
   - `/api/debug/customers` → lista clientes registrados (requiere sesión admin).
 
 Así se garantiza que cualquier canal (manual o externo) alimenta un repositorio único de clientes/facturas administrado por la misma persona.
-

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { requireAdmin } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { formatDate } from '@/lib/date'
 
 type CustomerRow = {
   id: string
@@ -8,11 +9,6 @@ type CustomerRow = {
   email: string
   invoiceCount: number
   lastInvoiceAt: string | null
-}
-
-function fmtDate(value: string | null) {
-  if (!value) return '—'
-  try { return new Date(value).toLocaleDateString() } catch { return value }
 }
 
 export default async function CustomersPage() {
@@ -75,7 +71,7 @@ export default async function CustomersPage() {
                   <td>{row.name}</td>
                   <td>{row.email}</td>
                   <td style={{ textAlign: 'right' }}>{row.invoiceCount}</td>
-                  <td>{fmtDate(row.lastInvoiceAt)}</td>
+                  <td>{formatDate(row.lastInvoiceAt)}</td>
                   <td><Link className="button" href={`/customers/${row.id}`}>Ver</Link></td>
                 </tr>
               ))}
@@ -86,4 +82,3 @@ export default async function CustomersPage() {
     </main>
   )
 }
-
