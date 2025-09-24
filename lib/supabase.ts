@@ -14,10 +14,10 @@ export class HttpError extends Error {
   }
 }
 
-let _adminClient: SupabaseClient | null = null
-let _anonClient: SupabaseClient | null = null
+let _adminClient: SupabaseClient<any, any, any> | null = null
+let _anonClient: SupabaseClient<any, any, any> | null = null
 
-export function getAdminClient(): SupabaseClient {
+export function getAdminClient(): SupabaseClient<any, any, any> {
   if (_adminClient) return _adminClient
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -31,7 +31,7 @@ export function getAdminClient(): SupabaseClient {
   return _adminClient
 }
 
-export function getBrowserClient(): SupabaseClient {
+export function getBrowserClient(): SupabaseClient<any, any, any> {
   if (_anonClient) return _anonClient
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY

@@ -52,4 +52,8 @@ export async function GET(req: Request) {
   })
 }
 
-function q(v: any) { if (v == null) return ''; const s = String(v).replaceAll('"','""'); return `"${s}"` }
+function q(v: any) {
+  if (v == null) return ''
+  const s = String(v).replace(/"/g, '""')
+  return `"${s}"`
+}

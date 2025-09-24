@@ -3,7 +3,7 @@
 Aplicación Next.js destinada a un único administrador. Permite crear y mantener un repositorio central de clientes y sus facturas eléctricas. El administrador puede subir facturas manualmente, recibirlas desde servicios externos y consultar todo el histórico.
 
 ## Requisitos
-- Node 18+
+- Node 20+
 - Proyecto Supabase (Auth + Postgres + Storage) con el esquema `core` desplegado
 - Bucket privado `invoices` en Supabase Storage
 

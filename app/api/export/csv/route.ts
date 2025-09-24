@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     const fromIso = toISODate(from)
     const toIso = toISODate(to)
 
-    await logAudit({ event: 'export_csv_requested', entity: 'invoice', details: { from: fromIso, to: toIso } })
+    await logAudit({ event: 'export_csv_requested', entity: 'invoice', meta: { from: fromIso, to: toIso } })
 
     const { data, error } = await admin
       .from('invoices')
@@ -68,13 +68,13 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: false })
 
     if (error) {
-      await logAudit({ event: 'export_csv_failed', entity: 'invoice', level: 'error', details: { error: error.message } })
+      await logAudit({ event: 'export_csv_failed', entity: 'invoice', level: 'error', meta: { error: error.message } })
       throw new HttpError(500, `DB query failed: ${error.message}`)
     }
 
     const csv = toCsv(data || [])
     const filename = `invoices_${fromIso.replace(/-/g,'')}-${toIso.replace(/-/g,'')}.csv`
-    await logAudit({ event: 'export_csv_success', entity: 'invoice', details: { rows: data?.length ?? 0 } })
+    await logAudit({ event: 'export_csv_success', entity: 'invoice', meta: { rows: data?.length ?? 0 } })
 
     return new Response(csv, {
       status: 200,
@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
     const status = err instanceof HttpError ? err.status : 500
     const message = err instanceof HttpError ? err.message : 'Internal server error'
     if (!(err instanceof HttpError)) {
-      await logAudit({ event: 'export_csv_failed', entity: 'invoice', level: 'error', details: { step: 'unhandled', error: String(err?.message || err) } })
+      await logAudit({ event: 'export_csv_failed', entity: 'invoice', level: 'error', meta: { step: 'unhandled', error: String(err?.message || err) } })
     }
     return new Response(JSON.stringify({ error: message }), { status, headers: { 'content-type': 'application/json; charset=utf-8' } })
   }

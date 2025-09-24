@@ -11,7 +11,7 @@ function normalizeEmail(email: string): string {
 }
 
 export async function ensureCustomer(
-  admin: SupabaseClient,
+  admin: SupabaseClient<any, any, any>,
   { name, email, userId }: EnsureCustomerInput
 ) {
   const trimmedName = name?.trim() || ''

@@ -42,7 +42,10 @@ function extractName(raw: string | null, fallbackEmail?: string | null): string 
 }
 
 function findPdfAttachment(form: FormData): Blob | null {
-  const entries = Array.from(form.entries())
+  const entries: [string, FormDataEntryValue][] = []
+  form.forEach((value, key) => {
+    entries.push([key, value])
+  })
   for (const [key, value] of entries) {
     if (value instanceof Blob) {
       const anyVal: any = value
