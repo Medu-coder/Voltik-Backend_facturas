@@ -9,9 +9,12 @@ create table if not exists core.customers (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null,
   name text,
-  email text unique,
+  email text not null,
   created_at timestamptz default now()
 );
+
+create unique index if not exists customers_email_name_idx
+on core.customers (email, lower(coalesce(name,'')));
 
 create table if not exists core.invoices (
   id uuid primary key default gen_random_uuid(),
@@ -101,4 +104,3 @@ grant usage, select on all sequences in schema core to anon, authenticated, serv
 alter default privileges in schema core grant select, insert, update, delete on tables to anon, authenticated, service_role;
 alter default privileges in schema core grant usage, select on sequences to anon, authenticated, service_role;
 grant execute on function core.is_admin() to anon, authenticated, service_role;
-

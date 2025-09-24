@@ -30,8 +30,8 @@ En Supabase Auth, añade `http://localhost:3000/api/auth/callback` a los Redirec
 
 ## Puesta en marcha
 ```
-pnpm install        # o npm install
-pnpm dev            # o npm run dev
+npm install
+npm run dev
 ```
 Accede a http://localhost:3000/login, introduce el email del admin y completa el enlace mágico.
 
@@ -42,10 +42,10 @@ Accede a http://localhost:3000/login, introduce el email del admin y completa el
   - Se crean automáticamente al subir/recibir una factura si no existen (por email).
 - **Subida de facturas (manual)**
   - Formulario en `/upload`: pide nombre del cliente, email y PDF (≤10 MB).
-  - Si el cliente no existía, se crea usando el email. Si existía, se actualiza el nombre.
+  - El identificador efectivo es `(email, nombre)` normalizado: si ambos coinciden se reutiliza el cliente; si el email coincide pero el nombre cambia, se genera un nuevo cliente (con el mismo email) para conservar el histórico.
   - El PDF se guarda en Storage con estructura `año/mes/email-normalizado/invoiceId.pdf` (ej. `2025/09/cliente_demo_at_example_com/UUID.pdf`).
 - **Dashboard**
-  - `/dashboard` muestra todas las facturas con filtros por fecha, descarga de CSV y acceso al detalle.
+  - `/dashboard` muestra todas las facturas (ID, Cliente, Email, Periodo, Estado, Total) y ofrece descarga CSV y enlace al detalle.
 - **Detalle de factura**
   - `/invoices/[id]` muestra datos normalizados + JSON completo (`extracted_raw`), descarga firmada y opción de reprocesar.
 - **Integraciones externas**

@@ -26,6 +26,7 @@ export default async function CustomerDetail({ params }: { params: { id: string 
   const rows = (invoices || []).map((inv: any) => ({
     id: inv.id,
     customer_name: customer.name || customer.email || customer.id,
+    customer_email: customer.email || '—',
     date_start: inv.billing_start_date,
     date_end: inv.billing_end_date,
     status: inv.status,

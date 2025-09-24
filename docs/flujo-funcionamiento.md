@@ -23,9 +23,10 @@ El MVP opera con un único usuario administrador capaz de gestionar todos los cl
 
 ## Subida manual (`/upload` → `/api/upload`)
 1. El administrador rellena **Nombre del cliente**, **Email** y adjunta el PDF (≤10 MB).
-2. `ensureCustomer()` busca el email en `core.customers`:
-   - Si existe, reutiliza el registro y actualiza el nombre en caso de haber cambiado.
-   - Si no existe, crea el cliente con `user_id = ADMIN_USER_ID` (o `session.user.id`).
+2. `ensureCustomer()` busca en `core.customers` combinando email y nombre (normalizados):
+   - Si email y nombre coinciden con un registro existente, se reutiliza.
+   - Si el email coincide pero el nombre es distinto, se crea un nuevo cliente (permitiendo varios nombres para un mismo correo).
+   - Si el email no existe, se crea un cliente con `user_id = ADMIN_USER_ID` (o `session.user.id`).
 3. Se sube el PDF a Storage siguiendo la estructura `invoices/<año>/<mes>/<email_normalizado>/<uuid>.pdf` (ej. `invoices/2025/09/cliente_demo_at_example_com/UUID.pdf`).
 4. Se inserta la factura en `core.invoices` con `status='pending'`.
 
@@ -40,7 +41,7 @@ El MVP opera con un único usuario administrador capaz de gestionar todos los cl
   - Reenvía al endpoint `/api/upload` o, si falla, ejecuta el proceso directamente.
 
 ## Dashboard y consultas
-- `/dashboard` lista todas las facturas (sin filtros por usuario) y permite exportar CSV.
+- `/dashboard` lista todas las facturas (sin filtros por usuario ni fecha), mostrando ID, cliente, email, periodo, estado y total; permite exportar CSV y acceder al detalle.
 - `/customers` muestra el directorio de clientes con nº de facturas y última actividad.
 - `/customers/[id]` detalla la ficha del cliente y su histórico de facturas.
 - `/invoices/[id]` muestra los campos normalizados + `extracted_raw` y permite descargar/reprocesar.

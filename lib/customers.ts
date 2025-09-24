@@ -19,19 +19,15 @@ export async function ensureCustomer(
   if (!trimmedName) throw new Error('Customer name is required')
   if (!normalizedEmail) throw new Error('Customer email is required')
 
-  const { data: existing, error: searchErr } = await admin
+  const { data: matches, error: searchErr } = await admin
     .from('customers')
     .select('id, name, email, user_id')
     .eq('email', normalizedEmail)
-    .maybeSingle()
   if (searchErr) throw new Error(`Customer lookup failed: ${searchErr.message}`)
-  if (existing) {
-    if (existing.name !== trimmedName) {
-      await admin.from('customers').update({ name: trimmedName }).eq('id', existing.id)
-      existing.name = trimmedName
-    }
-    return existing
-  }
+
+  const normalizedName = trimmedName.toLowerCase()
+  const existing = (matches || []).find((row) => (row.name || '').trim().toLowerCase() === normalizedName)
+  if (existing) return existing
 
   const fallbackUserId = userId || process.env.ADMIN_USER_ID || null
   if (!fallbackUserId) {
@@ -52,4 +48,3 @@ export async function ensureCustomer(
   if (insertErr) throw new Error(`Customer creation failed: ${insertErr.message}`)
   return created
 }
-
