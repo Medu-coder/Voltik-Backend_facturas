@@ -1,0 +1,247 @@
+/* NOTE: Shared utilities supporting MonthlyInvoicesCard and InvoicesStatusCard. */
+
+:root {
+  --chart-current-color: hsl(var(--voltik-success));
+  --chart-previous-color: hsl(var(--voltik-secondary));
+  --chart-pending-color: hsl(var(--voltik-warning));
+  --chart-processed-color: hsl(var(--voltik-info));
+  --chart-success-color: hsl(var(--voltik-success));
+  --chart-muted-color: hsl(var(--muted-foreground) / 0.15);
+}
+
+.chart-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.chart-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.chart-card__kpi {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+  text-align: right;
+}
+
+.chart-card__kpi-label {
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+.chart-card__kpi-value {
+  font-size: clamp(2.25rem, 2vw + 1rem, 3rem);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.chart-area {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  height: clamp(200px, 24vw, 260px);
+}
+
+.chart-area svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.chart-bar__baseline {
+  stroke: hsl(var(--border));
+  stroke-width: 1;
+}
+
+.chart-bar__rect {
+  rx: 10;
+  ry: 10;
+}
+
+.chart-bar__rect--current {
+  fill: var(--chart-current-color);
+}
+
+.chart-bar__rect--previous {
+  fill: var(--chart-previous-color);
+}
+
+.chart-bar__value {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  fill: hsl(var(--foreground));
+}
+
+.chart-bar__axis-label {
+  font-size: var(--text-xs);
+  fill: hsl(var(--muted-foreground));
+}
+
+.chart-legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.chart-legend__summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.chart-legend__summary-label {
+  color: hsl(var(--muted-foreground));
+  font-weight: 500;
+}
+
+.chart-legend__list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.chart-legend__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.chart-legend__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.chart-legend__label {
+  font-weight: 600;
+}
+
+.chart-legend__range {
+  font-size: var(--text-xs);
+  color: hsl(var(--muted-foreground));
+}
+
+.chart-legend__value {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.chart-legend__swatch {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.chart-legend__swatch--current {
+  background: var(--chart-current-color);
+}
+
+.chart-legend__swatch--previous {
+  background: var(--chart-previous-color);
+}
+
+.chart-legend__swatch--pending {
+  background: var(--chart-pending-color);
+}
+
+.chart-legend__swatch--processed {
+  background: var(--chart-processed-color);
+}
+
+.chart-legend__swatch--success {
+  background: var(--chart-success-color);
+}
+
+.chart-donut-layout {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 768px) {
+  .chart-donut-layout {
+    grid-template-columns: minmax(0, 260px) 1fr;
+    align-items: center;
+  }
+}
+
+.chart-donut {
+  position: relative;
+  width: min(100%, 260px);
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+}
+
+.chart-donut svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.chart-donut__track {
+  stroke: var(--chart-muted-color);
+  stroke-width: 18;
+  fill: none;
+}
+
+.chart-donut__segment {
+  stroke-width: 18;
+  fill: none;
+  stroke-linecap: butt;
+}
+
+.chart-donut__center {
+  position: absolute;
+  inset: 26%;
+  border-radius: 9999px;
+  background: hsl(var(--card));
+  box-shadow: inset 0 0 0 1px hsl(var(--border));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.chart-donut__total {
+  font-size: clamp(2rem, 2.4vw + 1rem, 2.75rem);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.chart-donut__label {
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+.chart-legend--stack .chart-legend__list {
+  gap: var(--space-2);
+}
+
+@media (max-width: 640px) {
+  .chart-card__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .chart-card__kpi {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .chart-area {
+    height: clamp(180px, 48vw, 220px);
+  }
+}

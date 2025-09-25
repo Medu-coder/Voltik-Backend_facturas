@@ -4,9 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import InvoiceTable from '@/components/InvoiceTable'
 import AppShell from '@/components/AppShell'
 import { fetchDashboardData } from '@/lib/invoices/dashboard'
-import StatsCard from './_components/StatsCard'
-import BarChart from './_components/BarChart'
-import DonutChart from './_components/DonutChart'
+import MonthlyInvoicesCard from './components/MonthlyInvoicesCard'
+import InvoicesStatusCard from './components/InvoicesStatusCard'
 
 export default async function DashboardPage({
   searchParams,
@@ -58,36 +57,17 @@ export default async function DashboardPage({
         </form>
       </section>
 
-      <section className="cards" aria-label="Indicadores principales">
-        <StatsCard
-          title="Facturas registradas por día"
-          kpiLabel="Total"
-          kpiValue={data.totalInvoicesCurrent}
-          delta={data.deltaVsPrevious}
-          deltaDirection={data.deltaDirection}
-          description={`${data.summaryRangeText}.`}
-          ctaLabel="Ver facturas"
-          ctaHref="#invoices-table"
-        >
-          <BarChart
-            labels={data.dailySeries.labels}
-            currentSeries={data.dailySeries.current}
-            previousSeries={data.dailySeries.previous}
-            currentLabel="Mes actual"
-            previousLabel="Mes pasado"
-          />
-        </StatsCard>
+      <section className="cards cards--stacked" aria-label="Indicadores principales">
+        <MonthlyInvoicesCard
+          comparison={data.monthlyComparison}
+          total={data.totalInvoicesCurrent}
+        />
 
-        <StatsCard
-          title="Estado facturas"
-          kpiLabel="Total"
-          kpiValue={data.totalInvoicesCurrent}
-          description={`${data.summaryRangeText}.`}
-          ctaLabel="Ver facturas"
-          ctaHref="#invoices-table"
-        >
-          <DonutChart data={data.statusBreakdown} />
-        </StatsCard>
+        <InvoicesStatusCard
+          breakdown={data.statusBreakdown}
+          total={data.totalInvoicesCurrent}
+          summary={`${data.summaryRangeText}.`}
+        />
       </section>
 
       <section className="table-section" aria-labelledby="latest-invoices">
