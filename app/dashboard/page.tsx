@@ -57,20 +57,22 @@ export default async function DashboardPage({
         </form>
       </section>
 
-      <section className="cards cards--stacked" aria-label="Indicadores principales">
-        <MonthlyInvoicesCard
-          comparisons={data.monthlyComparisons}
-          total={data.totalInvoicesCurrent}
-        />
+      <section className="layout-clamp" aria-label="Indicadores principales">
+        <div className="cards cards--stacked">
+          <MonthlyInvoicesCard
+            comparisons={data.monthlyComparisons}
+            total={data.totalInvoicesCurrent}
+          />
 
-        <InvoicesStatusCard
-          breakdown={data.statusBreakdown}
-          total={data.totalInvoicesCurrent}
-          summary={`${data.summaryRangeText}.`}
-        />
+          <InvoicesStatusCard
+            breakdown={data.statusBreakdown}
+            total={data.totalInvoicesCurrent}
+            summary={`${data.summaryRangeText}.`}
+          />
+        </div>
       </section>
 
-      <section className="table-section" aria-labelledby="latest-invoices">
+      <section className="table-section layout-clamp" aria-labelledby="latest-invoices">
         <div className="section-heading">
           <div>
             <h2 id="latest-invoices">Últimas facturas</h2>
