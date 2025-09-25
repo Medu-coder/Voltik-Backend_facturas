@@ -400,6 +400,27 @@
     gap: var(--space-4);
   }
 
+  .cards.cards--stacked {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    width: 100%;
+    max-width: 1120px;
+    align-self: center;
+    margin-inline: auto;
+  }
+
+  .cards.cards--stacked > * {
+    width: 100%;
+  }
+
+  .table-section {
+    width: 100%;
+    max-width: 1120px;
+    align-self: center;
+    margin-inline: auto;
+  }
+
   .card {
     background: hsl(var(--card));
     color: hsl(var(--card-foreground));

@@ -59,7 +59,7 @@ export default async function DashboardPage({
 
       <section className="cards cards--stacked" aria-label="Indicadores principales">
         <MonthlyInvoicesCard
-          comparison={data.monthlyComparison}
+          comparisons={data.monthlyComparisons}
           total={data.totalInvoicesCurrent}
         />
 
