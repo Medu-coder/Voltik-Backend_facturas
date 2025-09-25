@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { formatDate } from '@/lib/date'
+import { formatCurrency } from '@/lib/number'
 
 type Row = {
   id: string
@@ -10,22 +11,23 @@ type Row = {
   date_end: string | null
   status: string | null
   total: number | null
+  created_at?: string | null
 }
 
 export default function InvoiceTable({ invoices }: { invoices: Row[] }) {
   return (
-    <div className="card">
+    <div className="card table-card">
       <div className="table-responsive">
         <table className="table" role="table" aria-label="Listado de facturas">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Email</th>
-              <th>Cliente</th>
-              <th>Periodo</th>
-              <th>Estado</th>
-              <th style={{ textAlign: 'right' }}>Total</th>
-              <th></th>
+              <th scope="col">ID</th>
+              <th scope="col">Email</th>
+              <th scope="col">Cliente</th>
+              <th scope="col">Periodo</th>
+              <th scope="col">Estado</th>
+              <th scope="col" className="table-num">Total</th>
+              <th scope="col" className="table-actions">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -42,9 +44,13 @@ export default function InvoiceTable({ invoices }: { invoices: Row[] }) {
                 <td>{row.customer_email || '—'}</td>
                 <td>{row.customer_name || '—'}</td>
                 <td>{formatDate(row.date_start)} — {formatDate(row.date_end)}</td>
-                <td><span className={`badge badge-${badge(row.status)}`}>{row.status}</span></td>
-                <td style={{ textAlign: 'right' }}>{fmtMoney(row.total)}</td>
-                <td><Link className="button" href={`/invoices/${row.id}`}>Ver</Link></td>
+                <td><span className={`badge badge-${badge(row.status)}`}>{friendlyStatus(row.status)}</span></td>
+                <td className="table-num">{formatCurrency(row.total)}</td>
+                <td className="table-actions">
+                  <Link className="btn btn-link" href={`/invoices/${row.id}`}>
+                    Ver factura
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -53,11 +59,6 @@ export default function InvoiceTable({ invoices }: { invoices: Row[] }) {
     </div>
   )
 }
-
-function fmtMoney(n?: number | null) {
-  if (n == null) return '—'
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(n)
-}
 function badge(status?: string | null) {
   switch ((status || '').toLowerCase()) {
     case 'queued':
@@ -65,6 +66,24 @@ function badge(status?: string | null) {
     case 'processed':
     case 'done': return 'ok'
     case 'error': return 'error'
+    case 'reprocess': return 'warn'
     default: return 'neutral'
+  }
+}
+
+function friendlyStatus(status?: string | null) {
+  switch ((status || '').toLowerCase()) {
+    case 'processed':
+    case 'done':
+      return 'Procesada'
+    case 'error':
+      return 'Con incidencia'
+    case 'reprocess':
+      return 'Reprocesar'
+    case 'queued':
+    case 'pending':
+      return 'Pendiente'
+    default:
+      return status || 'Sin estado'
   }
 }
