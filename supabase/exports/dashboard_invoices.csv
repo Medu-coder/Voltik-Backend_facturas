@@ -1,0 +1,10 @@
+id,created_at,status,total_amount_eur,billing_start_date,billing_end_date,customer_id,name,email
+b872644b-5fbf-427a-ac16-b95b72cef9be,2025-09-23 10:08:55.760765+00,processed,232.16,2025-07-20,2025-09-18,1cb9d906-9617-4dc4-841d-6156d826c6f2,Demo2,cliente@demo.com
+c812772f-cabb-4096-b5fc-f02c2a7f36e4,2025-07-05 08:55:42.091975+00,pending,67.41,2025-06-03,2025-07-03,4e600d75-a55e-41da-8621-bb9aadc8fda4,Antonio Perez,pruebas@demo.com
+d82f6774-5265-42ea-96c9-794a2ad54c62,2025-06-29 08:32:10.892941+00,pending,63.23,2025-05-22,2025-06-21,d771b35a-dfc9-4b30-85b7-0147b37617f7,Cliente Admin Demo (admin touched),admin+cliente@demo.local
+cca0eb2e-743c-4038-b9d5-a3634ce9d847,2025-06-24 07:11:41.575712+00,processed,80.37,2025-05-12,2025-06-11,c6901ad5-4a6e-48f0-991e-cd51b680a020,Pruebas Pruebas,pruebas@demo.com
+c31d7cdc-651a-4447-9edf-4d5560ae5c25,2025-05-10 10:20:25.765573+00,pending,58.97,2025-04-01,2025-05-01,bc0150ac-3551-4b51-8698-b287ab15a951,Cliente demo,pepe@gmail.com
+193f08cb-5664-43ca-ab10-0434f85e019f,2025-04-07 07:03:24.103896+00,pending,86.55,2025-03-05,2025-04-04,1dfe2d81-7cf6-420d-b2da-19eb7b346ae0,Pruebas demo3,pruebas@demo.com
+a33452ef-396d-4802-b150-687078a6a983,2024-12-28 07:02:58.029559+00,pending,90.71,2025-09-21,2025-12-21,1dfe2d81-7cf6-420d-b2da-19eb7b346ae0,Pruebas demo3,pruebas@demo.com
+a1ca6623-5fc8-4fb2-8f8a-5274c5fea7e4,2024-12-12 09:08:48.28928+00,pending,130.61,2025-10-07,2025-12-06,a8ed4912-6304-4b77-a8a4-8003608a1999,Pepe Pérez,pruebas@demo.com
+4d3b00a0-0f4f-4926-acfa-baf7a226e552,2024-05-17 09:57:29.051768+00,processed,73.03,2025-04-08,2025-05-08,1f293fdd-904e-4249-9757-af9d54ee261f,Pruebas demo2,pruebas@demo.es

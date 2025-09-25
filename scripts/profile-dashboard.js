@@ -1,3 +1,37 @@
+const fs = require('fs');
+const path = require('path');
+const Module = require('module');
+
+const projectRoot = path.resolve(__dirname, '..');
+const buildOutputDir = path.join(projectRoot, 'tmp', 'ts-build');
+const aliasPrefix = '@/';
+const originalResolveFilename = Module._resolveFilename;
+
+Module._resolveFilename = function patchedResolve(request, parent, isMain, options) {
+  if (request.startsWith(aliasPrefix)) {
+    const relative = request.slice(aliasPrefix.length);
+    const normalized = relative.startsWith('lib/') ? relative.slice(4) : relative;
+    const resolved = path.join(buildOutputDir, normalized);
+    return originalResolveFilename.call(this, resolved, parent, isMain, options);
+  }
+  return originalResolveFilename.call(this, request, parent, isMain, options);
+};
+
+const envPath = path.join(projectRoot, '.env.local');
+if (fs.existsSync(envPath)) {
+  const envContents = fs.readFileSync(envPath, 'utf8');
+  envContents.split(/\r?\n/).forEach((line) => {
+    if (!line || line.trim().startsWith('#')) return;
+    const idx = line.indexOf('=');
+    if (idx === -1) return;
+    const key = line.slice(0, idx).trim();
+    const value = line.slice(idx + 1).trim();
+    if (key && !(key in process.env)) {
+      process.env[key] = value;
+    }
+  });
+}
+
 const { supabaseAdmin } = require('../tmp/ts-build/supabase/admin');
 const { fetchDashboardData } = require('../tmp/ts-build/invoices/dashboard');
 

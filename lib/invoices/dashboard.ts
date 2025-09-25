@@ -84,6 +84,23 @@ export type DashboardData = {
 
 type StatusCategoryKey = 'pending' | 'processed' | 'success'
 
+type AggregatedStatusCounts = Record<StatusCategoryKey, number>
+
+type AggregatedMonthBucket = {
+  monthAnchor: string
+  rangeStart: string
+  rangeEnd: string
+  currentCount: number
+  previousYearCount: number
+}
+
+type NormalizedAggregates = {
+  currentTotal: number
+  previousTotal: number
+  statusCounts: AggregatedStatusCounts
+  monthlyBuckets: AggregatedMonthBucket[]
+}
+
 const STATUS_CATEGORIES: Array<{
   key: StatusCategoryKey
   label: string
@@ -102,53 +119,42 @@ export async function fetchDashboardData(
   const previousRange = shiftRangeByMonths({ from: sanitized.fromDate, to: sanitized.toDate }, -1)
   const monthSlices = sliceRangeByMonths({ from: sanitized.fromDate, to: sanitized.toDate })
   const previousYearSlices = monthSlices.map((slice) => shiftRangeByYears(slice, -1))
-  const previousYearFullRange = shiftRangeByYears({ from: sanitized.fromDate, to: sanitized.toDate }, -1)
 
-  const currentQuery = buildInvoicesQuery(admin, {
-    from: startOfDayUtc(sanitized.fromDate).toISOString(),
-    to: endOfDayUtc(sanitized.toDate).toISOString(),
-    q: sanitized.q,
-  })
-  const previousQuery = buildInvoicesQuery(admin, {
-    from: startOfDayUtc(previousRange.from).toISOString(),
-    to: endOfDayUtc(previousRange.to).toISOString(),
-    q: sanitized.q,
-  })
-  const previousYearQuery = buildInvoicesQuery(admin, {
-    from: startOfDayUtc(previousYearFullRange.from).toISOString(),
-    to: endOfDayUtc(previousYearFullRange.to).toISOString(),
-    q: sanitized.q,
-  })
+  const [{ data: aggregates, error: aggregatesError }, { data: invoiceRows, error: invoicesError }] =
+    await Promise.all([
+      admin.rpc('dashboard_invoice_aggregates', {
+        p_from: sanitized.from,
+        p_to: sanitized.to,
+        p_query: sanitized.q ?? null,
+      }),
+      buildInvoicesQuery(
+        admin,
+        {
+          from: startOfDayUtc(sanitized.fromDate).toISOString(),
+          to: endOfDayUtc(sanitized.toDate).toISOString(),
+          q: sanitized.q,
+        },
+        { limit: 20 }
+      ),
+    ])
 
-  const [
-    { data: currentRows, error: currentError },
-    { data: previousRows, error: previousError },
-    { data: previousYearRows, error: previousYearError },
-  ] = await Promise.all([currentQuery, previousQuery, previousYearQuery])
+  if (aggregatesError) throw aggregatesError
+  if (invoicesError) throw invoicesError
 
-  if (currentError) throw currentError
-  if (previousError) throw previousError
-  if (previousYearError) throw previousYearError
+  const normalizedInvoices = (invoiceRows || []).map((row) => normalizeInvoiceRow(row))
+  const normalizedAggregates = normalizeAggregates(aggregates)
 
-  const normalizedCurrent = (currentRows || []).map((row) => normalizeInvoiceRow(row))
-  const normalizedPrevious = (previousRows || []).map((row) => normalizeInvoiceRow(row))
-  const normalizedPreviousYear = (previousYearRows || []).map((row) => normalizeInvoiceRow(row))
-
-  const currentTotals = computeTotals(normalizedCurrent)
-  const previousTotals = computeTotals(normalizedPrevious)
-
-  const deltaRaw = computeDelta(currentTotals.count, previousTotals.count)
+  const deltaRaw = computeDelta(normalizedAggregates.currentTotal, normalizedAggregates.previousTotal)
   const deltaDirection = deltaRaw == null ? 'flat' : deltaRaw > 0 ? 'up' : deltaRaw < 0 ? 'down' : 'flat'
 
-  const dailySeries = buildMonthlySeries(sanitized.fromDate, normalizedCurrent)
+  const dailySeries = buildMonthlySeries(sanitized.fromDate, normalizedAggregates.monthlyBuckets)
   const monthlyComparisons = buildMonthlyComparisons(
-    normalizedCurrent,
-    normalizedPreviousYear,
     monthSlices,
-    previousYearSlices
+    previousYearSlices,
+    normalizedAggregates.monthlyBuckets
   )
 
-  const statusBreakdown = buildStatusBreakdown(normalizedCurrent)
+  const statusBreakdown = buildStatusBreakdown(normalizedAggregates.statusCounts)
 
   return {
     filters: {
@@ -159,8 +165,8 @@ export async function fetchDashboardData(
       previousTo: isoDateString(previousRange.to),
     },
     headerRangeLabel: formatDateRange(sanitized.fromDate, sanitized.toDate),
-    totalInvoicesCurrent: currentTotals.count,
-    totalInvoicesPrevious: previousTotals.count,
+    totalInvoicesCurrent: normalizedAggregates.currentTotal,
+    totalInvoicesPrevious: normalizedAggregates.previousTotal,
     deltaVsPrevious: deltaRaw,
     deltaDirection,
     summaryRangeText: formatRangeSummary(sanitized.fromDate, sanitized.toDate),
@@ -168,23 +174,16 @@ export async function fetchDashboardData(
     dailySeries,
     monthlyComparisons,
     statusBreakdown,
-    invoices: normalizedCurrent
-      .sort((a, b) => {
-        const aDate = a.created_at ? new Date(a.created_at).getTime() : 0
-        const bDate = b.created_at ? new Date(b.created_at).getTime() : 0
-        return bDate - aDate
-      })
-      .slice(0, 20)
-      .map((row) => ({
-        id: row.id,
-        customer_name: row.customer?.name || row.customer?.email || row.customer?.id || null,
-        customer_email: row.customer?.email || null,
-        date_start: row.billing_start_date,
-        date_end: row.billing_end_date,
-        status: row.status,
-        total: row.total_amount_eur,
-        created_at: row.created_at,
-      })),
+    invoices: normalizedInvoices.map((row) => ({
+      id: row.id,
+      customer_name: row.customer?.name || row.customer?.email || row.customer?.id || null,
+      customer_email: row.customer?.email || null,
+      date_start: row.billing_start_date,
+      date_end: row.billing_end_date,
+      status: row.status,
+      total: row.total_amount_eur,
+      created_at: row.created_at,
+    })),
   }
 }
 
@@ -234,7 +233,8 @@ function sanitizeQuery(value?: string | null) {
 
 function buildInvoicesQuery(
   admin: SupabaseClient,
-  filters: { from: string; to: string; q?: string | null }
+  filters: { from: string; to: string; q?: string | null },
+  options?: { limit?: number }
 ) {
   let query = admin
     .from('invoices')
@@ -250,6 +250,10 @@ function buildInvoicesQuery(
     query = query.or(
       `id.ilike.${like},customer.email.ilike.${like},customer.name.ilike.${like}`
     ) as any
+  }
+
+  if (options?.limit) {
+    query = query.limit(options.limit)
   }
 
   return query
@@ -273,9 +277,25 @@ function normalizeInvoiceRow(row: any): DashboardInvoiceRow {
   }
 }
 
-function computeTotals(rows: DashboardInvoiceRow[]) {
+function normalizeAggregates(raw: any): NormalizedAggregates {
+  const statusCountsRaw = raw?.statusCounts ?? {}
+  const bucketsRaw = Array.isArray(raw?.monthlyBuckets) ? raw.monthlyBuckets : []
+
   return {
-    count: rows.length,
+    currentTotal: Number(raw?.currentTotal ?? 0),
+    previousTotal: Number(raw?.previousTotal ?? 0),
+    statusCounts: {
+      pending: Number(statusCountsRaw.pending ?? 0),
+      processed: Number(statusCountsRaw.processed ?? 0),
+      success: Number(statusCountsRaw.success ?? 0),
+    },
+    monthlyBuckets: bucketsRaw.map((bucket: any) => ({
+      monthAnchor: bucket.monthAnchor as string,
+      rangeStart: bucket.rangeStart as string,
+      rangeEnd: bucket.rangeEnd as string,
+      currentCount: Number(bucket.currentCount ?? 0),
+      previousYearCount: Number(bucket.previousYearCount ?? 0),
+    })),
   }
 }
 
@@ -285,17 +305,14 @@ function computeDelta(current: number, previous: number) {
   return Number.isFinite(delta) ? delta : null
 }
 
-function buildMonthlySeries(from: Date, rows: DashboardInvoiceRow[]): DailySeries {
+function buildMonthlySeries(from: Date, buckets: AggregatedMonthBucket[]): DailySeries {
   const year = from.getUTCFullYear()
   const counts = new Array(12).fill(0)
-  rows.forEach((row) => {
-    const baseDate = row.created_at
-    if (!baseDate) return
-    const parsed = new Date(baseDate)
+  buckets.forEach((bucket) => {
+    const parsed = new Date(bucket.monthAnchor)
     if (Number.isNaN(parsed.getTime())) return
     if (parsed.getUTCFullYear() !== year) return
-    const month = parsed.getUTCMonth()
-    counts[month] += 1
+    counts[parsed.getUTCMonth()] = bucket.currentCount
   })
   return {
     year,
@@ -309,20 +326,20 @@ const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'S
 const MONTH_LONG_FORMATTER = new Intl.DateTimeFormat('es-ES', { month: 'long', timeZone: 'UTC' })
 
 function buildMonthlyComparisons(
-  currentRows: DashboardInvoiceRow[],
-  previousYearRows: DashboardInvoiceRow[],
   monthRanges: DateRange[],
-  previousYearRanges: DateRange[]
+  previousYearRanges: DateRange[],
+  buckets: AggregatedMonthBucket[]
 ): MonthlyComparison[] {
   return monthRanges.map((range, index) => {
     const previousRange = previousYearRanges[index]
-    const currentCount = countInvoicesInRange(currentRows, range)
-    const previousCount = countInvoicesInRange(previousYearRows, previousRange)
     const month = range.from.getUTCMonth()
     const year = range.from.getUTCFullYear()
     const key = `${year}-${String(month + 1).padStart(2, '0')}`
     const label = `${MONTH_LABELS[month]} ${year}`
     const title = `${capitalize(MONTH_LONG_FORMATTER.format(range.from))} ${year}`
+    const bucket = buckets.find((item) => bucketKey(item.monthAnchor) === key)
+    const currentCount = bucket?.currentCount ?? 0
+    const previousCount = bucket?.previousYearCount ?? 0
 
     return {
       key,
@@ -344,30 +361,6 @@ function buildMonthlyComparisons(
       },
     }
   })
-}
-
-function countInvoicesInRange(rows: DashboardInvoiceRow[], range: DateRange): number {
-  if (rows.length === 0) return 0
-  const start = startOfDayUtc(range.from).getTime()
-  const end = endOfDayUtc(range.to).getTime()
-  let total = 0
-  rows.forEach((row) => {
-    const date = resolveInvoiceDate(row)
-    if (!date) return
-    const time = date.getTime()
-    if (time >= start && time <= end) {
-      total += 1
-    }
-  })
-  return total
-}
-
-function resolveInvoiceDate(row: DashboardInvoiceRow): Date | null {
-  const baseDate = row.created_at
-  if (!baseDate) return null
-  const parsed = new Date(baseDate)
-  if (Number.isNaN(parsed.getTime())) return null
-  return parsed
 }
 
 function shiftRangeByYears(range: DateRange, years: number): DateRange {
@@ -424,33 +417,19 @@ function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
-function buildStatusBreakdown(rows: DashboardInvoiceRow[]): StatusBreakdown {
-  const totals: Record<StatusCategoryKey, number> = {
-    pending: 0,
-    processed: 0,
-    success: 0,
-  }
+function bucketKey(anchor: string): string {
+  const date = new Date(anchor)
+  if (Number.isNaN(date.getTime())) return ''
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
+}
 
-  rows.forEach((row) => {
-    const key = mapStatusToCategory(row.status)
-    totals[key] += 1
-  })
-
-  const totalCount = rows.length
+function buildStatusBreakdown(counts: AggregatedStatusCounts): StatusBreakdown {
+  const total = counts.pending + counts.processed + counts.success
 
   return STATUS_CATEGORIES.map(({ key, label }) => ({
     key,
     label,
-    value: totals[key],
-    percentage: totalCount === 0 ? 0 : Math.round((totals[key] / totalCount) * 100),
+    value: counts[key],
+    percentage: total === 0 ? 0 : (counts[key] / total) * 100,
   }))
-}
-
-function mapStatusToCategory(status?: string | null): StatusCategoryKey {
-  if (!status) return 'pending'
-  const normalized = status.toLowerCase()
-  const match = STATUS_CATEGORIES.find((category) =>
-    category.matches.includes(normalized)
-  )
-  return match ? match.key : 'pending'
 }

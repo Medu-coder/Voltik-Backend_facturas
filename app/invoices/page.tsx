@@ -1,8 +1,11 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { requireAdmin } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import AppShell from '@/components/AppShell'
 import InvoiceTable from '@/components/InvoiceTable'
+
+const PAGE_SIZE = 50
 
 export default async function InvoicesPage({
   searchParams,
@@ -13,21 +16,45 @@ export default async function InvoicesPage({
   const admin = supabaseAdmin()
 
   const q = sanitizeQuery(pickFirst(searchParams.q))
+  const page = clampPage(parsePage(pickFirst(searchParams.page)))
+  const limit = PAGE_SIZE
+  const offset = (page - 1) * limit
 
   let query = admin
     .from('invoices')
-    .select('id, created_at, status, total_amount_eur, billing_start_date, billing_end_date, customer:customer_id (id, name, email)')
+    .select(
+      'id, created_at, status, total_amount_eur, billing_start_date, billing_end_date, customer:customer_id (id, name, email)',
+      { count: 'exact' }
+    )
     .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
 
   if (q) {
     const like = `%${escapeLike(q)}%`
     query = query.or(`id.ilike.${like},customer.email.ilike.${like},customer.name.ilike.${like}`) as any
   }
 
-  const { data, error } = await query
+  const { data, error, count } = await query
   if (error) throw new Error(error.message)
 
-  const rows = (data || []).map((r: any) => ({
+  const invoices = data || []
+  const totalCount = typeof count === 'number' ? count : invoices.length
+  const totalPages = totalCount === 0 ? 1 : Math.max(1, Math.ceil(totalCount / limit))
+
+  if (totalCount === 0 && page !== 1) {
+    redirect(buildHref({ q }))
+  }
+
+  if (totalCount > 0 && page > totalPages) {
+    redirect(buildHref({ q, page: totalPages }))
+  }
+
+  const startItem = totalCount === 0 ? 0 : offset + 1
+  const endItem = totalCount === 0 ? 0 : offset + invoices.length
+  const hasPrevious = page > 1
+  const hasNext = totalCount > 0 ? page < totalPages : false
+
+  const rows = invoices.map((r: any) => ({
     id: r.id,
     customer_name: r.customer?.name || r.customer?.email || r.customer?.id || null,
     customer_email: r.customer?.email || null,
@@ -82,6 +109,16 @@ export default async function InvoicesPage({
           </div>
         </div>
         <InvoiceTable invoices={rows} />
+        <PaginationControls
+          page={page}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          startItem={startItem}
+          endItem={endItem}
+          hasPrevious={hasPrevious}
+          hasNext={hasNext}
+          q={q}
+        />
       </section>
     </AppShell>
   )
@@ -122,4 +159,77 @@ function sanitizeQuery(value?: string) {
 
 function escapeLike(value: string) {
   return value.replace(/%/g, '\\%').replace(/_/g, '\\_')
+}
+
+function parsePage(value?: string) {
+  if (!value) return 1
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return 1
+  return Math.floor(parsed)
+}
+
+function clampPage(page: number) {
+  return page < 1 ? 1 : page
+}
+
+function buildHref({ page, q }: { page?: number; q?: string | null }) {
+  const params = new URLSearchParams()
+  if (page && page > 1) params.set('page', page.toString())
+  if (q) params.set('q', q)
+  const query = params.toString()
+  return query ? `/invoices?${query}` : '/invoices'
+}
+
+function PaginationControls({
+  page,
+  totalPages,
+  totalCount,
+  startItem,
+  endItem,
+  hasPrevious,
+  hasNext,
+  q,
+}: {
+  page: number
+  totalPages: number
+  totalCount: number
+  startItem: number
+  endItem: number
+  hasPrevious: boolean
+  hasNext: boolean
+  q: string | null
+}) {
+  if (totalCount <= PAGE_SIZE) return null
+
+  const previousHref = hasPrevious ? buildHref({ page: page - 1, q }) : null
+  const nextHref = hasNext ? buildHref({ page: page + 1, q }) : null
+
+  return (
+    <nav className="pagination" aria-label="Paginación de facturas">
+      <p className="muted">
+        Mostrando {startItem}–{endItem} de {totalCount} facturas
+      </p>
+      <div className="pagination-actions">
+        {hasPrevious ? (
+          <Link className="btn btn-secondary" href={previousHref!}>
+            Anterior
+          </Link>
+        ) : (
+          <span className="btn btn-secondary" aria-disabled="true" style={{ pointerEvents: 'none', opacity: 0.5 }}>
+            Anterior
+          </span>
+        )}
+        <span className="muted">Página {page} de {totalPages}</span>
+        {hasNext ? (
+          <Link className="btn btn-secondary" href={nextHref!}>
+            Siguiente
+          </Link>
+        ) : (
+          <span className="btn btn-secondary" aria-disabled="true" style={{ pointerEvents: 'none', opacity: 0.5 }}>
+            Siguiente
+          </span>
+        )}
+      </div>
+    </nav>
+  )
 }
