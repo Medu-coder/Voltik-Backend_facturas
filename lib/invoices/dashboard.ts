@@ -47,7 +47,9 @@ export type MonthlyComparisonSlice = {
 }
 
 export type MonthlyComparison = {
-  monthTitle: string
+  key: string
+  label: string
+  title: string
   current: MonthlyComparisonSlice
   previous: MonthlyComparisonSlice
 }
@@ -75,7 +77,7 @@ export type DashboardData = {
   summaryRangeText: string
   previousRangeText: string
   dailySeries: DailySeries
-  monthlyComparison: MonthlyComparison
+  monthlyComparisons: MonthlyComparison[]
   statusBreakdown: StatusBreakdown
   invoices: DashboardTableRow[]
 }
@@ -98,8 +100,9 @@ export async function fetchDashboardData(
 ): Promise<DashboardData> {
   const sanitized = normalizeFilters(filters)
   const previousRange = shiftRangeByMonths({ from: sanitized.fromDate, to: sanitized.toDate }, -1)
-  const currentMonthRange = clampRangeToMonth({ from: sanitized.fromDate, to: sanitized.toDate })
-  const previousYearMonthRange = shiftRangeByYears(currentMonthRange, -1)
+  const monthSlices = sliceRangeByMonths({ from: sanitized.fromDate, to: sanitized.toDate })
+  const previousYearSlices = monthSlices.map((slice) => shiftRangeByYears(slice, -1))
+  const previousYearFullRange = shiftRangeByYears({ from: sanitized.fromDate, to: sanitized.toDate }, -1)
 
   const currentQuery = buildInvoicesQuery(admin, {
     from: startOfDayUtc(sanitized.fromDate).toISOString(),
@@ -112,8 +115,8 @@ export async function fetchDashboardData(
     q: sanitized.q,
   })
   const previousYearQuery = buildInvoicesQuery(admin, {
-    from: startOfDayUtc(previousYearMonthRange.from).toISOString(),
-    to: endOfDayUtc(previousYearMonthRange.to).toISOString(),
+    from: startOfDayUtc(previousYearFullRange.from).toISOString(),
+    to: endOfDayUtc(previousYearFullRange.to).toISOString(),
     q: sanitized.q,
   })
 
@@ -138,11 +141,11 @@ export async function fetchDashboardData(
   const deltaDirection = deltaRaw == null ? 'flat' : deltaRaw > 0 ? 'up' : deltaRaw < 0 ? 'down' : 'flat'
 
   const dailySeries = buildMonthlySeries(sanitized.fromDate, normalizedCurrent)
-  const monthlyComparison = buildMonthlyComparison(
+  const monthlyComparisons = buildMonthlyComparisons(
     normalizedCurrent,
     normalizedPreviousYear,
-    currentMonthRange,
-    previousYearMonthRange
+    monthSlices,
+    previousYearSlices
   )
 
   const statusBreakdown = buildStatusBreakdown(normalizedCurrent)
@@ -163,7 +166,7 @@ export async function fetchDashboardData(
     summaryRangeText: formatRangeSummary(sanitized.fromDate, sanitized.toDate),
     previousRangeText: formatRangeSummary(previousRange.from, previousRange.to),
     dailySeries,
-    monthlyComparison,
+    monthlyComparisons,
     statusBreakdown,
     invoices: normalizedCurrent
       .sort((a, b) => {
@@ -305,34 +308,42 @@ const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'S
 
 const MONTH_LONG_FORMATTER = new Intl.DateTimeFormat('es-ES', { month: 'long', timeZone: 'UTC' })
 
-function buildMonthlyComparison(
+function buildMonthlyComparisons(
   currentRows: DashboardInvoiceRow[],
   previousYearRows: DashboardInvoiceRow[],
-  currentRange: DateRange,
-  previousYearRange: DateRange
-): MonthlyComparison {
-  const currentCount = countInvoicesInRange(currentRows, currentRange)
-  const previousCount = countInvoicesInRange(previousYearRows, previousYearRange)
+  monthRanges: DateRange[],
+  previousYearRanges: DateRange[]
+): MonthlyComparison[] {
+  return monthRanges.map((range, index) => {
+    const previousRange = previousYearRanges[index]
+    const currentCount = countInvoicesInRange(currentRows, range)
+    const previousCount = countInvoicesInRange(previousYearRows, previousRange)
+    const month = range.from.getUTCMonth()
+    const year = range.from.getUTCFullYear()
+    const key = `${year}-${String(month + 1).padStart(2, '0')}`
+    const label = `${MONTH_LABELS[month]} ${year}`
+    const title = `${capitalize(MONTH_LONG_FORMATTER.format(range.from))} ${year}`
 
-  const monthTitle = `${capitalize(MONTH_LONG_FORMATTER.format(currentRange.from))} ${currentRange.from.getUTCFullYear()}`
-
-  return {
-    monthTitle,
-    current: {
-      year: currentRange.from.getUTCFullYear(),
-      count: currentCount,
-      from: isoDateString(currentRange.from),
-      to: isoDateString(currentRange.to),
-      rangeLabel: formatDateRange(currentRange.from, currentRange.to),
-    },
-    previous: {
-      year: previousYearRange.from.getUTCFullYear(),
-      count: previousCount,
-      from: isoDateString(previousYearRange.from),
-      to: isoDateString(previousYearRange.to),
-      rangeLabel: formatDateRange(previousYearRange.from, previousYearRange.to),
-    },
-  }
+    return {
+      key,
+      label,
+      title,
+      current: {
+        year,
+        count: currentCount,
+        from: isoDateString(range.from),
+        to: isoDateString(range.to),
+        rangeLabel: formatDateRange(range.from, range.to),
+      },
+      previous: {
+        year: previousRange.from.getUTCFullYear(),
+        count: previousCount,
+        from: isoDateString(previousRange.from),
+        to: isoDateString(previousRange.to),
+        rangeLabel: formatDateRange(previousRange.from, previousRange.to),
+      },
+    }
+  })
 }
 
 function countInvoicesInRange(rows: DashboardInvoiceRow[], range: DateRange): number {
@@ -359,22 +370,28 @@ function resolveInvoiceDate(row: DashboardInvoiceRow): Date | null {
   return parsed
 }
 
-function clampRangeToMonth(range: DateRange): DateRange {
-  const start = startOfDayUtc(range.from)
-  const monthEnd = endOfMonthUtc(range.from)
-  const candidateEnd = range.to.getTime() < monthEnd.getTime() ? range.to : monthEnd
-  const end = startOfDayUtc(candidateEnd)
-  return {
-    from: start,
-    to: end,
-  }
-}
-
 function shiftRangeByYears(range: DateRange, years: number): DateRange {
   return {
     from: addYearsUtc(range.from, years),
     to: addYearsUtc(range.to, years),
   }
+}
+
+function sliceRangeByMonths(range: DateRange): DateRange[] {
+  const slices: DateRange[] = []
+  let cursor = startOfDayUtc(range.from)
+  const lastDay = startOfDayUtc(range.to)
+
+  while (cursor.getTime() <= lastDay.getTime()) {
+    const sliceFrom = cursor
+    const monthEnd = endOfMonthUtc(sliceFrom)
+    const rawEnd = monthEnd.getTime() > lastDay.getTime() ? lastDay : monthEnd
+    const sliceTo = startOfDayUtc(rawEnd)
+    slices.push({ from: sliceFrom, to: sliceTo })
+    cursor = startOfDayUtc(new Date(Date.UTC(sliceFrom.getUTCFullYear(), sliceFrom.getUTCMonth() + 1, 1)))
+  }
+
+  return slices
 }
 
 function addYearsUtc(date: Date, years: number): Date {
