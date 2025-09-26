@@ -17,7 +17,10 @@ type CustomerQueryRow = Database['core']['Tables']['customers']['Row'] & {
   invoices: Array<{ count: number | null }> | null
 }
 
-type InvoiceMetaRow = Pick<Database['core']['Tables']['invoices']['Row'], 'customer_id' | 'created_at'>
+type LastInvoiceRow = {
+  customer_id: string
+  last_invoice_at: string | null
+}
 
 export default async function CustomersPage({
   searchParams,
@@ -42,24 +45,20 @@ export default async function CustomersPage({
   const { data: customersData, error } = await customersQuery
   if (error) throw new Error(error.message)
 
-  let invoicesMeta: InvoiceMetaRow[] = []
+  let lastInvoices: LastInvoiceRow[] = []
   const customerRows: CustomerQueryRow[] = (customersData ?? []) as CustomerQueryRow[]
   const customerIds = customerRows.map((row) => row.id).filter(Boolean)
   if (customerIds.length > 0) {
-    const { data: invoiceRows, error: invoiceErr } = await admin
-      .from('invoices')
-      .select('customer_id, created_at')
-      .in('customer_id', customerIds)
-      .order('created_at', { ascending: false })
+    const { data: invoiceRows, error: invoiceErr } = await admin.rpc('get_customers_last_invoice', {
+      p_customer_ids: customerIds,
+    })
     if (invoiceErr) throw new Error(invoiceErr.message)
-    invoicesMeta = (invoiceRows ?? []) as InvoiceMetaRow[]
+    lastInvoices = (invoiceRows ?? []) as LastInvoiceRow[]
   }
 
   const lastMap = new Map<string, string | null>()
-  for (const row of invoicesMeta) {
-    if (!lastMap.has(row.customer_id)) {
-      lastMap.set(row.customer_id, row.created_at ?? null)
-    }
+  for (const row of lastInvoices) {
+    lastMap.set(row.customer_id, row.last_invoice_at)
   }
 
   const rows: CustomerRow[] = customerRows.map((c) => ({

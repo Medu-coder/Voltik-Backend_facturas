@@ -34,7 +34,7 @@ flowchart LR
 ### Principales módulos
 - `app/` – Rutas server (dashboard, invoices, customers, upload, login) + componentes específicos.
 - `app/api/` – Endpoints REST para subida, email inbound, exportaciones, signed URLs y herramientas dev.
-- `lib/` – Clientes Supabase (`supabase/admin|server|client`), helpers de auth, lógica de dashboard (`lib/invoices/dashboard`), formateadores (`date`, `number`), logger de auditoría.
+- `lib/` – Clientes Supabase (`supabase/admin|server|client`), helpers de auth, lógica de dashboard (`lib/invoices/dashboard`), persistencia de facturas (`lib/invoices/upload`), formateadores (`date`, `number`), logger de auditoría.
 - `components/` – Componentes compartidos (tabla de facturas, layout de dashboard, formularios, toaster, json viewer).
 - `supabase/` – Migraciones SQL, esquema exportado y configuraciones de referencia.
 
@@ -46,8 +46,8 @@ flowchart LR
 
 ### Email entrante (`/api/email/inbound`)
 1. Valida `X-INBOUND-SECRET` y extrae remitente/adjuntos.
-2. Reutiliza `ensureCustomer` y reenvía el payload a `/api/upload` vía `fetch` interno.
-3. Si la delegación falla, realiza la subida directamente (fallback) y registra eventos en `core.audit_logs`.
+2. Resuelve/crea el cliente con `ensureCustomer`.
+3. Reutiliza el helper `persistInvoicePdf` para subir el PDF y crear la factura con metadata consistente, registrando eventos en `core.audit_logs`.
 
 ### Dashboard (`/dashboard`)
 1. `fetchDashboardData` ejecuta la RPC `core.dashboard_invoice_aggregates` y una consulta limitada de facturas.
@@ -61,6 +61,7 @@ flowchart LR
 | `core.invoices` | Facturas y metadatos. | FK `customer_id`, `storage_object_path`, fechas de facturación, `status` (`pending`, `processed`, `error`, `reprocess`, `done`), índices por `created_at`, `(status, created_at desc)` y `(customer_id, issue_date, status)`, trigger `trg_invoices_set_updated_at`. |
 | `core.audit_logs` | Registro de eventos de auditoría. | `event`, `entity`, `level`, `meta jsonb`, secuencia `core.audit_logs_id_seq`. |
 | `core.dashboard_invoice_aggregates(p_from, p_to, p_query)` | RPC para dashboard (JSON). | Devuelve totales, buckets mensuales, status breakdown. Ejecuta con `security definer` y requiere índices previos. |
+| `core.get_customers_last_invoice(p_customer_ids uuid[])` | RPC auxiliar. | Devuelve `customer_id` + `last_invoice_at` (`max(created_at)`) para poblar `/customers` sin escanear todas las facturas. |
 | `core.is_admin()` | Helper para RLS. | Evalúa claims `admin` en JWT o rol `service_role`.
 
 ## 4. Storage de facturas
@@ -83,5 +84,5 @@ flowchart LR
 
 ## 7. Consideraciones de escalabilidad
 - Añadir índices adicionales si se incorporan filtros por fechas o estados distintos.
-- Para volúmenes altos de facturas, sustituir el fetch interno del webhook por una ejecución directa (evita doble lectura de PDFs).
+- El webhook ya reutiliza `persistInvoicePdf`; revisa periódicamente su latencia y considera colas si llegan >10 facturas/min.
 - Si se incorporan múltiples administradores o clientes finales, será necesario extender `core.is_admin`, claims y políticas RLS.

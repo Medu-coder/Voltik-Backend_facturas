@@ -161,6 +161,13 @@ export type Database = {
         Args: { p_from: string | null; p_to: string | null; p_query?: string | null }
         Returns: Json
       }
+      get_customers_last_invoice: {
+        Args: { p_customer_ids: string[] | null }
+        Returns: {
+          customer_id: string
+          last_invoice_at: string | null
+        }[]
+      }
     }
     Enums: Record<string, never>
   }

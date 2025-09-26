@@ -14,6 +14,7 @@ Esta guía resume los controles de seguridad actuales y las acciones recomendada
 - Mantén un `.env.example` sin secretos reales y sincroniza las variables activas en `docs/setup.md`.
 - Usa gestores de secretos (Vercel, 1Password, Vault) para entornos productivos.
 - Regenera los tokens (`SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`, `SUPABASE_JWT_SECRET`) tras cada incidente o fuga.
+- Para la CI define un `SUPABASE_DB_URL` read-only (GitHub Secret) y evita subirlo a `.env.local`.
 
 ## 3. Control de acceso
 - **Autenticación**: Supabase Magic Link (`/api/auth/callback`).
@@ -29,7 +30,7 @@ Esta guía resume los controles de seguridad actuales y las acciones recomendada
   - `core.audit_logs`: lectura admin; escritura service role.
 - **Storage** (`storage.objects`):
   - Admin/service role pueden leer/escribir el bucket `invoices`.
-  - Lectura por owners depende de metadata (`customer_id`, `actor_user_id`). Actualiza `/api/upload` para adjuntar dicha metadata.
+  - Lectura por owners depende de metadata (`customer_id`, `actor_user_id`). `persistInvoicePdf` garantiza que tanto `/api/upload` como el webhook de email adjunten esos campos.
   - URLs firmadas se limitan a 10–300 segundos (`clampExpires`).
 
 ## 5. Protección de datos personales

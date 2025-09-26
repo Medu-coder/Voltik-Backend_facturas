@@ -15,7 +15,7 @@ Este documento describe cómo preparar Supabase para Voltik Invoices sin exponer
 2. Si necesitas recrear el esquema completo, utiliza `supabase/schema/structure.sql` como referencia.
 3. Verifica que existen:
    - Tablas `core.customers`, `core.invoices`, `core.audit_logs`.
-   - Función `core.dashboard_invoice_aggregates`.
+   - Funciones `core.dashboard_invoice_aggregates` y `core.get_customers_last_invoice`.
    - Índices `idx_invoices_created_at`, `idx_invoices_status_created_at`, `customers_email_name_idx`.
 
 ## 3. Políticas de seguridad (RLS)

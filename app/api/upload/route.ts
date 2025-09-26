@@ -2,10 +2,9 @@ import { NextResponse } from 'next/server'
 import { supabaseRoute } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { ensureCustomer } from '@/lib/customers'
-import { buildInvoiceStoragePath } from '@/lib/storage'
 import { isAdminUser } from '@/lib/auth'
 import { logAudit } from '@/lib/logger'
-import type { Database } from '@/lib/types/supabase'
+import { persistInvoicePdf, InvoicePersistError } from '@/lib/invoices/upload'
 
 function parseBearer(h?: string | null) {
   if (!h) return null
@@ -37,7 +36,6 @@ export async function POST(req: Request) {
   if (file.type !== 'application/pdf') return NextResponse.json({ error: 'Invalid mime' }, { status: 400 })
   if (file.size > 10 * 1024 * 1024) return NextResponse.json({ error: 'Too large' }, { status: 400 })
 
-  const invoiceId = crypto.randomUUID()
   const bucket = process.env.STORAGE_INVOICES_BUCKET || 'invoices'
 
   const admin = supabaseAdmin()
@@ -56,58 +54,57 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: message }, { status: 400 })
   }
 
-  const { path } = buildInvoiceStoragePath(invoiceId, customer.email || customer_email)
-
-  const arrayBuffer = await file.arrayBuffer()
-  const { error: upErr } = await admin.storage.from(bucket).upload(path, new Uint8Array(arrayBuffer), {
-    contentType: 'application/pdf',
-    upsert: false,
-    metadata: {
-      customer_id: customer.id,
-      actor_user_id: actingUserId,
-    },
-  })
-  if (upErr) {
-    await logAudit({
-      event: 'invoice_upload_failed',
-      entity: 'storage',
-      level: 'error',
-      customer_id: customer.id,
-      actor_user_id: actingUserId,
-      meta: { step: 'upload', error: upErr.message }
+  try {
+    const { invoiceId, storagePath } = await persistInvoicePdf({
+      admin,
+      file,
+      customerId: customer.id,
+      customerEmail: customer.email || customer_email,
+      actorUserId: actingUserId,
+      bucket,
     })
-    return NextResponse.json({ error: upErr.message }, { status: 500 })
-  }
 
-  const insertPayload: Database['core']['Tables']['invoices']['Insert'] = {
-    id: invoiceId,
-    customer_id: customer.id,
-    storage_object_path: path,
-    status: 'pending',
-  }
-
-  const { error: insErr } = await admin.from('invoices').insert(insertPayload)
-  if (insErr) {
     await logAudit({
-      event: 'invoice_upload_failed',
+      event: 'invoice_upload_success',
       entity: 'invoice',
-      level: 'error',
       entity_id: invoiceId,
       customer_id: customer.id,
       actor_user_id: actingUserId,
-      meta: { step: 'insert', error: insErr.message }
+      meta: { path: storagePath }
     })
-    return NextResponse.json({ error: insErr.message }, { status: 500 })
+
+    return NextResponse.json({ ok: true, id: invoiceId })
+  } catch (err: unknown) {
+    if (err instanceof InvoicePersistError) {
+      const meta = {
+        step: err.step,
+        error: err.message,
+        storage_path: err.storagePath,
+        invoice_id: err.invoiceId,
+      }
+      const baseLog = {
+        customer_id: customer.id,
+        actor_user_id: actingUserId,
+        meta,
+      }
+      if (err.step === 'insert') {
+        await logAudit({
+          event: 'invoice_upload_failed',
+          entity: 'invoice',
+          level: 'error',
+          entity_id: err.invoiceId,
+          ...baseLog,
+        })
+      } else {
+        await logAudit({
+          event: 'invoice_upload_failed',
+          entity: 'storage',
+          level: 'error',
+          ...baseLog,
+        })
+      }
+      return NextResponse.json({ error: err.message }, { status: 500 })
+    }
+    throw err
   }
-
-  await logAudit({
-    event: 'invoice_upload_success',
-    entity: 'invoice',
-    entity_id: invoiceId,
-    customer_id: customer.id,
-    actor_user_id: actingUserId,
-    meta: { path }
-  })
-
-  return NextResponse.json({ ok: true, id: invoiceId })
 }
