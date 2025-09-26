@@ -50,7 +50,8 @@ jobs:
 
       - name: Lint Supabase schema & policies
         if: ${{ env.SUPABASE_DB_URL != '' }}
-        run: npx supabase db lint --db-url "$SUPABASE_DB_URL"
+        run: |
+          npx supabase db lint --db-url "$SUPABASE_DB_URL" --dns-resolver https
 
       - name: Skip notice (missing SUPABASE_DB_URL)
         if: ${{ env.SUPABASE_DB_URL == '' }}
