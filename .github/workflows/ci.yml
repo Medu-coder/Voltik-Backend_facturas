@@ -32,8 +32,9 @@ jobs:
   supabase-lint:
     name: Supabase Schema Lint
     needs: lint-typecheck
-    if: ${{ secrets.SUPABASE_DB_URL != '' }}
     runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,6 +49,9 @@ jobs:
         run: npm ci
 
       - name: Lint Supabase schema & policies
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        if: ${{ env.SUPABASE_DB_URL != '' }}
         run: npx supabase db lint --db-url "$SUPABASE_DB_URL"
+
+      - name: Skip notice (missing SUPABASE_DB_URL)
+        if: ${{ env.SUPABASE_DB_URL == '' }}
+        run: echo "SUPABASE_DB_URL secret not set; skipping Supabase lint job."

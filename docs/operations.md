@@ -23,7 +23,7 @@ Guía para ejecutar tareas recurrentes (despliegues, mantenimiento, soporte) en 
 ## 3. Integración continua (CI)
 - Workflow `CI` en `.github/workflows/ci.yml` se ejecuta en cada push a `main` y en Pull Requests.
 - Job `Lint & Typecheck`: instala dependencias con `npm ci`, ejecuta `npm run lint` y `npm run typecheck` con Node.js 20.
-- Job `Supabase Schema Lint`: corre `npx supabase db lint --db-url "$SUPABASE_DB_URL"` para validar funciones, políticas RLS y tipos. Solo se ejecuta si se define el secreto `SUPABASE_DB_URL` (cadena de conexión read-only).
+- Job `Supabase Schema Lint`: corre `npx supabase db lint --db-url "$SUPABASE_DB_URL"` para validar funciones, políticas RLS y tipos. El paso se omite automáticamente cuando el secreto `SUPABASE_DB_URL` está vacío, dejando constancia en logs.
 - Configura el secreto en GitHub (Settings → Secrets → Actions) usando una URL de Postgres con permisos mínimos (lectura + ejecución). No lo expongas en logs.
 - Falla el pipeline si cualquiera de los comandos devuelve estado distinto de cero; úsalo como requisito previo para merges.
 
