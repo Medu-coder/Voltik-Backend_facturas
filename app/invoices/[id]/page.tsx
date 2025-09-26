@@ -5,6 +5,11 @@ import Link from 'next/link'
 import JsonViewer from '@/components/JsonViewer'
 import { formatDate } from '@/lib/date'
 import AppShell from '@/components/AppShell'
+import type { Database } from '@/lib/types/supabase'
+
+type InvoiceDetailRow = Database['core']['Tables']['invoices']['Row'] & {
+  customer?: Pick<Database['core']['Tables']['customers']['Row'], 'id' | 'name' | 'email'> | null
+}
 
 export default async function InvoiceDetail({ params }: { params: { id: string } }) {
   await requireAdmin()
@@ -14,13 +19,14 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
     .from('invoices')
     .select('*, customer:customer_id (id, name, email)')
     .eq('id', params.id)
-    .single()
-
+    .single<InvoiceDetailRow>()
   if (error || !data) return notFound()
+
+  const invoice = data as InvoiceDetailRow
+  const customer = invoice.customer ?? { id: null, name: null, email: null }
 
   const downloadHref = `/api/invoices/${params.id}/download`
   const reprocessHref = `/api/invoices/${params.id}/reprocess`
-  const customer = (data as any).customer || {}
 
   const topbar = (
     <>
@@ -40,7 +46,7 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
       <section className="page-header">
         <div>
           <h1>Factura {params.id.slice(0, 8)}</h1>
-          <p className="muted">Cliente: {customer.name || customer.email || (data as any).customer_id}</p>
+          <p className="muted">Cliente: {customer.name || customer.email || invoice.customer_id}</p>
         </div>
         <div className="page-header__actions">
           <a className="btn btn-secondary" href={downloadHref}>Descargar PDF</a>
@@ -53,22 +59,22 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
       <section className="card" aria-labelledby="resumen">
         <h2 id="resumen">Resumen</h2>
         <dl className="definition-grid">
-          <div><dt>Cliente</dt><dd>{customer.name || customer.email || (data as any).customer_id}</dd></div>
+          <div><dt>Cliente</dt><dd>{customer.name || customer.email || invoice.customer_id}</dd></div>
           <div><dt>Email</dt><dd>{customer.email || '—'}</dd></div>
-          <div><dt>Periodo</dt><dd>{formatDate((data as any).billing_start_date)} — {formatDate((data as any).billing_end_date)}</dd></div>
-          <div><dt>Fecha emisión</dt><dd>{formatDate((data as any).issue_date)}</dd></div>
-          <div><dt>Estado</dt><dd><span className={`badge badge-${badge(data.status)}`}>{data.status}</span></dd></div>
-          <div><dt>Total</dt><dd>{money((data as any).total_amount_eur)}</dd></div>
-          <div><dt>CUPS</dt><dd>{(data as any).cups || '—'}</dd></div>
-          <div><dt>Tarifa</dt><dd>{(data as any).tariff || '—'}</dd></div>
-          <div><dt>€/kWh</dt><dd>{(data as any).energy_price_eur_per_kwh ?? '—'}</dd></div>
-          <div><dt>€/kW</dt><dd>{(data as any).power_price_eur_per_kw ?? '—'}</dd></div>
+          <div><dt>Periodo</dt><dd>{formatDate(invoice.billing_start_date)} — {formatDate(invoice.billing_end_date)}</dd></div>
+          <div><dt>Fecha emisión</dt><dd>{formatDate(invoice.issue_date)}</dd></div>
+          <div><dt>Estado</dt><dd><span className={`badge badge-${badge(invoice.status)}`}>{invoice.status}</span></dd></div>
+          <div><dt>Total</dt><dd>{money(invoice.total_amount_eur)}</dd></div>
+          <div><dt>CUPS</dt><dd>{invoice.cups || '—'}</dd></div>
+          <div><dt>Tarifa</dt><dd>{invoice.tariff || '—'}</dd></div>
+          <div><dt>€/kWh</dt><dd>{invoice.energy_price_eur_per_kwh ?? '—'}</dd></div>
+          <div><dt>€/kW</dt><dd>{invoice.power_price_eur_per_kw ?? '—'}</dd></div>
         </dl>
       </section>
 
       <section className="card" aria-labelledby="raw">
         <h2 id="raw">extracted_raw</h2>
-        <JsonViewer value={(data as any).extracted_raw} />
+        <JsonViewer value={invoice.extracted_raw ?? null} />
       </section>
     </AppShell>
   )

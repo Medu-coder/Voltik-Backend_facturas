@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseRoute } from '@/lib/supabase/server'
-import { createClient } from '@supabase/supabase-js'
+import { supabaseAdmin } from '@/lib/supabase/admin'
+import { isAdminUser } from '@/lib/auth'
 
 function ok<T>(data: T, status = 200) {
   return new NextResponse(JSON.stringify(data, null, 2), { status, headers: { 'content-type': 'application/json; charset=utf-8' } })
@@ -21,12 +22,9 @@ export async function GET(req: Request) {
   const bearer = parseBearer(authHeader)
   const { data: { user } } = bearer ? await supabase.auth.getUser(bearer) : await supabase.auth.getUser()
   if (!user) return ok({ error: 'Unauthorized' }, 401)
-  const adminEmails = (process.env.ADMIN_EMAIL || process.env.ADMIN_EMAILS || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean)
-  const role = (user.app_metadata as any)?.role
-  const isAdmin = role === 'admin' || (user.email && adminEmails.includes(user.email.toLowerCase()))
-  if (!isAdmin) return ok({ error: 'Forbidden' }, 403)
+  if (!isAdminUser(user)) return ok({ error: 'Forbidden' }, 403)
 
-  const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { db: { schema: 'core' } })
+  const admin = supabaseAdmin()
   const { data, error } = await admin.from('customers').select('id,name,email').order('created_at', { ascending: true })
   if (error) return ok({ error: error.message }, 500)
   return ok({ items: data || [] })

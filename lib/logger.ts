@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { getAdminClient } from './supabase'
+import type { Database, Json } from '@/lib/types/supabase'
 
 export type LogLevel = 'info' | 'warn' | 'error'
 
@@ -15,11 +16,25 @@ export type LogAuditParams = {
   meta?: unknown
 }
 
-function toMeta(meta: unknown): any | null {
+type AuditLogInsert = Database['core']['Tables']['audit_logs']['Insert']
+
+function toJson(value: unknown): Json {
+  if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return value
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => toJson(item))
+  }
+  if (typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).map(([key, val]) => [key, toJson(val)] as const)
+    return Object.fromEntries(entries)
+  }
+  return String(value)
+}
+
+function toMeta(meta: unknown): AuditLogInsert['meta'] {
   if (meta == null) return null
-  if (typeof meta === 'string') return { message: meta }
-  if (typeof meta === 'object') return meta as any
-  return { value: String(meta) }
+  return toJson(meta)
 }
 
 /**
@@ -29,7 +44,7 @@ function toMeta(meta: unknown): any | null {
 export async function logAudit(params: LogAuditParams): Promise<void> {
   try {
     const supabase = getAdminClient()
-    const payload: any = {
+    const payload: AuditLogInsert = {
       event: params.event,
       entity: params.entity,
       entity_id: params.entity_id ?? null,

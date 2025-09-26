@@ -5,17 +5,32 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import InvoiceTable from '@/components/InvoiceTable'
 import { formatDate } from '@/lib/date'
 import AppShell from '@/components/AppShell'
+import type { Database } from '@/lib/types/supabase'
+
+type CustomerRecord = Database['core']['Tables']['customers']['Row']
+type InvoiceSummaryRow = Pick<
+  Database['core']['Tables']['invoices']['Row'],
+  'id' | 'status' | 'total_amount_eur' | 'billing_start_date' | 'billing_end_date' | 'created_at'
+>
 
 export default async function CustomerDetail({ params }: { params: { id: string } }) {
   await requireAdmin()
   const admin = supabaseAdmin()
 
-  const { data: customer, error } = await admin
+  type CustomerRow = {
+    id: string
+    name: string | null
+    email: string | null
+    created_at: string | null
+  }
+
+  const { data: customerData, error } = await admin
     .from('customers')
     .select('id, name, email, created_at')
     .eq('id', params.id)
-    .single()
-  if (error || !customer) return notFound()
+    .single<CustomerRecord>()
+  if (error || !customerData) return notFound()
+  const customer = customerData as CustomerRow
 
   const { data: invoices, error: invErr } = await admin
     .from('invoices')
@@ -24,7 +39,8 @@ export default async function CustomerDetail({ params }: { params: { id: string 
     .order('created_at', { ascending: false })
   if (invErr) throw new Error(invErr.message)
 
-  const rows = (invoices || []).map((inv: any) => ({
+  const invoiceRows = (invoices ?? []) as InvoiceSummaryRow[]
+  const rows = invoiceRows.map((inv) => ({
     id: inv.id,
     customer_name: customer.name || customer.email || customer.id,
     customer_email: customer.email || '—',

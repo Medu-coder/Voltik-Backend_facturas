@@ -15,10 +15,15 @@ export const supabaseServer = () => {
       get(name: string) {
         return cookieStore.get(name)?.value
       },
-      set(_name: string, _value: string, _options: CookieOptions) {
+      set(name: string, value: string, options: CookieOptions) {
+        void name
+        void value
+        void options
         // no-op on server components (read only)
       },
-      remove(_name: string, _options: CookieOptions) {
+      remove(name: string, options: CookieOptions) {
+        void name
+        void options
         // no-op on server components (read only)
       },
     },

@@ -25,8 +25,9 @@ export default function LoginForm() {
       })
       if (error) throw error
       toast('Enlace enviado. Revisa tu email.', 'success')
-    } catch (err: any) {
-      toast(err.message || 'Error al enviar enlace', 'error')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error al enviar enlace'
+      toast(message, 'error')
     } finally {
       setLoading(false)
     }

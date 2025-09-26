@@ -2,6 +2,7 @@
 import 'server-only'
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/types/supabase'
 import { jwtVerify, type JWTPayload } from 'jose'
 
 // Lightweight HTTP error for guards
@@ -14,31 +15,34 @@ export class HttpError extends Error {
   }
 }
 
-let _adminClient: SupabaseClient<any, any, any> | null = null
-let _anonClient: SupabaseClient<any, any, any> | null = null
+type CoreClient = SupabaseClient<Database, 'core'>
+type PublicClient = SupabaseClient<Database>
 
-export function getAdminClient(): SupabaseClient<any, any, any> {
+let _adminClient: CoreClient | null = null
+let _anonClient: PublicClient | null = null
+
+export function getAdminClient(): CoreClient {
   if (_adminClient) return _adminClient
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !serviceKey) {
     throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars')
   }
-  _adminClient = createClient(url, serviceKey, {
+  _adminClient = createClient<Database, 'core'>(url, serviceKey, {
     auth: { persistSession: false },
     db: { schema: 'core' }
   })
   return _adminClient
 }
 
-export function getBrowserClient(): SupabaseClient<any, any, any> {
+export function getBrowserClient(): PublicClient {
   if (_anonClient) return _anonClient
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!url || !anonKey) {
     throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY env vars')
   }
-  _anonClient = createClient(url, anonKey, {
+  _anonClient = createClient<Database>(url, anonKey, {
     auth: { persistSession: false }
   })
   return _anonClient
@@ -84,6 +88,13 @@ export async function getClaimsFromAuthHeader(req: Request): Promise<AdminClaims
   }
 }
 
+function hasAdminClaim(claims: AdminClaims): boolean {
+  if (!claims.app_metadata) return claims.admin === true
+  const metadata = claims.app_metadata as Record<string, unknown>
+  const roleValue = metadata?.role
+  return (typeof roleValue === 'string' && roleValue === 'admin') || claims.admin === true
+}
+
 export async function assertAdminFromAuthHeader(req: Request): Promise<AdminClaims> {
   const auth = req.headers.get('authorization') || req.headers.get('Authorization') || undefined
   const token = parseBearer(auth)
@@ -91,10 +102,11 @@ export async function assertAdminFromAuthHeader(req: Request): Promise<AdminClai
   let claims: AdminClaims
   try {
     claims = await verifyJwt(token)
-  } catch (e) {
+  } catch (error) {
+    void error
     throw new HttpError(401, 'Invalid token')
   }
-  const isAdmin = (claims.app_metadata as any)?.role === 'admin' || claims.admin === true
+  const isAdmin = hasAdminClaim(claims)
   if (!isAdmin) throw new HttpError(403, 'Admin privileges required')
   return claims
 }

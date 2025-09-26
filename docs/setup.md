@@ -47,7 +47,18 @@ select proname from pg_proc where proname = 'dashboard_invoice_aggregates';`).
 3. Importa el esquema completo si aún no existe (`supabase/schema/structure.sql`). Utiliza la consola `psql` o Supabase CLI (`supabase db push`) según tus necesidades.
 4. Comprueba Policies en `core.*` y `storage.objects` para el bucket `invoices`.
 
-## 5. Levantar el entorno local
+## 5. Generar tipos TypeScript de Supabase
+Para que TypeScript controle el contrato con la base de datos, genera los tipos del proyecto y guárdalos en `lib/types/supabase.ts`.
+
+```bash
+# Requiere tener Supabase CLI autenticado con el proyecto
+supabase gen types typescript --linked > lib/types/supabase.ts
+```
+
+- Ejecuta el comando tras cada cambio de esquema (nueva columna, tabla o función).
+- Si trabajas sin proyecto “linked”, puedes usar `--project-id` y `--password` en su lugar.
+
+## 6. Levantar el entorno local
 ```bash
 npm run dev
 ```
@@ -59,7 +70,7 @@ El servidor se levanta en `http://localhost:3000`. Accede a `/login`, introduce 
 - `npm run lint`: ejecuta `next lint`.
 - `npm run typecheck`: ejecuta `tsc --noEmit`.
 
-## 6. Webhook de email (opcional en local)
+## 7. Webhook de email (opcional en local)
 Puedes simular el inbound enviando un formulario multipart:
 ```bash
 curl -X POST http://localhost:3000/api/email/inbound \
@@ -69,12 +80,12 @@ curl -X POST http://localhost:3000/api/email/inbound \
   -F "attachment1=@./supabase/test.pdf;type=application/pdf"
 ```
 
-## 7. Mantenimientos y migraciones futuras
+## 8. Mantenimientos y migraciones futuras
 - Añade nuevos cambios de base de datos en `supabase/migrations/<YYYYMMDD>_<name>.sql`.
 - Documenta cualquier cambio estructural en `docs/architecture.md` y, si altera la seguridad, actualiza `docs/security.md`.
 - Para despliegues en Vercel/infra propia, replica las variables del `.env.local` en el gestor de secretos del proveedor.
 
-## 8. Checklist previo a producción
+## 9. Checklist previo a producción
 - [ ] Todos los secretos configurados y rotados tras pruebas locales.
 - [ ] Bucket `invoices` validado como privado y con metadata (`customer_id`, `actor_user_id`) adjunta en las subidas.
 - [ ] `npm run build` y `npm run lint` ejecutados sin errores.

@@ -38,8 +38,9 @@ export default function UploadForm() {
       if (!res.ok) throw new Error(await res.text())
       toast('Encolado para procesamiento', 'success')
       setTimeout(() => router.push('/dashboard'), 600)
-    } catch (err: any) {
-      toast(err.message || 'Error al subir', 'error')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error al subir'
+      toast(message, 'error')
     } finally {
       setLoading(false)
     }

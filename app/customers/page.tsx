@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { formatDate } from '@/lib/date'
 import AppShell from '@/components/AppShell'
+import type { Database } from '@/lib/types/supabase'
 
 type CustomerRow = {
   id: string
@@ -11,6 +12,12 @@ type CustomerRow = {
   invoiceCount: number
   lastInvoiceAt: string | null
 }
+
+type CustomerQueryRow = Database['core']['Tables']['customers']['Row'] & {
+  invoices: Array<{ count: number | null }> | null
+}
+
+type InvoiceMetaRow = Pick<Database['core']['Tables']['invoices']['Row'], 'customer_id' | 'created_at'>
 
 export default async function CustomersPage({
   searchParams,
@@ -29,14 +36,15 @@ export default async function CustomersPage({
 
   if (q) {
     const like = `%${escapeLike(q)}%`
-    customersQuery = customersQuery.or(`name.ilike.${like},email.ilike.${like}`) as any
+    customersQuery = customersQuery.or(`name.ilike.${like},email.ilike.${like}`) as typeof customersQuery
   }
 
   const { data: customersData, error } = await customersQuery
   if (error) throw new Error(error.message)
 
-  let invoicesMeta: any[] = []
-  const customerIds = (customersData || []).map((row: any) => row.id).filter(Boolean)
+  let invoicesMeta: InvoiceMetaRow[] = []
+  const customerRows: CustomerQueryRow[] = (customersData ?? []) as CustomerQueryRow[]
+  const customerIds = customerRows.map((row) => row.id).filter(Boolean)
   if (customerIds.length > 0) {
     const { data: invoiceRows, error: invoiceErr } = await admin
       .from('invoices')
@@ -44,17 +52,17 @@ export default async function CustomersPage({
       .in('customer_id', customerIds)
       .order('created_at', { ascending: false })
     if (invoiceErr) throw new Error(invoiceErr.message)
-    invoicesMeta = invoiceRows || []
+    invoicesMeta = (invoiceRows ?? []) as InvoiceMetaRow[]
   }
 
-  const lastMap = new Map<string, string>()
-  for (const row of invoicesMeta || []) {
-    if (!lastMap.has((row as any).customer_id)) {
-      lastMap.set((row as any).customer_id, (row as any).created_at)
+  const lastMap = new Map<string, string | null>()
+  for (const row of invoicesMeta) {
+    if (!lastMap.has(row.customer_id)) {
+      lastMap.set(row.customer_id, row.created_at ?? null)
     }
   }
 
-  const rows: CustomerRow[] = (customersData || []).map((c: any) => ({
+  const rows: CustomerRow[] = customerRows.map((c) => ({
     id: c.id,
     name: c.name || '—',
     email: c.email || '—',

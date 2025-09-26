@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { formatDateRange, formatRangeSummary, isoDateString, parseISODate, shiftRangeByMonths, startOfMonthUtc, todayUtc } from '@/lib/date'
+import type { Database } from '@/lib/types/supabase'
 
 export type DashboardFilters = {
   from?: string | null
@@ -111,8 +112,25 @@ const STATUS_CATEGORIES: Array<{
   { key: 'success', label: 'Success', matches: ['done', 'success'] },
 ]
 
+type InvoiceQueryResult = Database['core']['Tables']['invoices']['Row'] & {
+  customer?: Pick<Database['core']['Tables']['customers']['Row'], 'id' | 'name' | 'email'> | null
+}
+
+type AggregatesRaw = {
+  currentTotal?: number | null
+  previousTotal?: number | null
+  statusCounts?: Record<string, number | null> | null
+  monthlyBuckets?: Array<{
+    monthAnchor?: string | null
+    rangeStart?: string | null
+    rangeEnd?: string | null
+    currentCount?: number | null
+    previousYearCount?: number | null
+  } | null> | null
+}
+
 export async function fetchDashboardData(
-  admin: SupabaseClient<any, any, any>,
+  admin: SupabaseClient<Database, 'core'>,
   filters: DashboardFilters
 ): Promise<DashboardData> {
   const sanitized = normalizeFilters(filters)
@@ -141,7 +159,7 @@ export async function fetchDashboardData(
   if (aggregatesError) throw aggregatesError
   if (invoicesError) throw invoicesError
 
-  const normalizedInvoices = (invoiceRows || []).map((row) => normalizeInvoiceRow(row))
+  const normalizedInvoices = (invoiceRows ?? []).map((row) => normalizeInvoiceRow(row as InvoiceQueryResult))
   const normalizedAggregates = normalizeAggregates(aggregates)
 
   const deltaRaw = computeDelta(normalizedAggregates.currentTotal, normalizedAggregates.previousTotal)
@@ -232,7 +250,7 @@ function sanitizeQuery(value?: string | null) {
 }
 
 function buildInvoicesQuery(
-  admin: SupabaseClient,
+  admin: SupabaseClient<Database, 'core'>,
   filters: { from: string; to: string; q?: string | null },
   options?: { limit?: number }
 ) {
@@ -249,7 +267,7 @@ function buildInvoicesQuery(
     const like = `%${filters.q.replace(/%/g, '\\%').replace(/_/g, '\\_')}%`
     query = query.or(
       `id.ilike.${like},customer.email.ilike.${like},customer.name.ilike.${like}`
-    ) as any
+    ) as typeof query
   }
 
   if (options?.limit) {
@@ -259,7 +277,7 @@ function buildInvoicesQuery(
   return query
 }
 
-function normalizeInvoiceRow(row: any): DashboardInvoiceRow {
+function normalizeInvoiceRow(row: InvoiceQueryResult): DashboardInvoiceRow {
   return {
     id: row.id,
     created_at: row.created_at ?? null,
@@ -277,24 +295,25 @@ function normalizeInvoiceRow(row: any): DashboardInvoiceRow {
   }
 }
 
-function normalizeAggregates(raw: any): NormalizedAggregates {
-  const statusCountsRaw = raw?.statusCounts ?? {}
-  const bucketsRaw = Array.isArray(raw?.monthlyBuckets) ? raw.monthlyBuckets : []
+function normalizeAggregates(raw: unknown): NormalizedAggregates {
+  const payload = (raw as AggregatesRaw) ?? {}
+  const statusCountsRaw = payload.statusCounts ?? {}
+  const bucketsRaw = Array.isArray(payload.monthlyBuckets) ? payload.monthlyBuckets : []
 
   return {
-    currentTotal: Number(raw?.currentTotal ?? 0),
-    previousTotal: Number(raw?.previousTotal ?? 0),
+    currentTotal: Number(payload.currentTotal ?? 0),
+    previousTotal: Number(payload.previousTotal ?? 0),
     statusCounts: {
       pending: Number(statusCountsRaw.pending ?? 0),
       processed: Number(statusCountsRaw.processed ?? 0),
       success: Number(statusCountsRaw.success ?? 0),
     },
-    monthlyBuckets: bucketsRaw.map((bucket: any) => ({
-      monthAnchor: bucket.monthAnchor as string,
-      rangeStart: bucket.rangeStart as string,
-      rangeEnd: bucket.rangeEnd as string,
-      currentCount: Number(bucket.currentCount ?? 0),
-      previousYearCount: Number(bucket.previousYearCount ?? 0),
+    monthlyBuckets: bucketsRaw.map((bucket) => ({
+      monthAnchor: bucket?.monthAnchor ?? '',
+      rangeStart: bucket?.rangeStart ?? '',
+      rangeEnd: bucket?.rangeEnd ?? '',
+      currentCount: Number(bucket?.currentCount ?? 0),
+      previousYearCount: Number(bucket?.previousYearCount ?? 0),
     })),
   }
 }

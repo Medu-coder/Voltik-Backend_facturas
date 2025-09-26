@@ -4,8 +4,13 @@ import { requireAdmin } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import AppShell from '@/components/AppShell'
 import InvoiceTable from '@/components/InvoiceTable'
+import type { Database } from '@/lib/types/supabase'
 
 const PAGE_SIZE = 50
+
+type InvoiceListRow = Database['core']['Tables']['invoices']['Row'] & {
+  customer: Pick<Database['core']['Tables']['customers']['Row'], 'id' | 'name' | 'email'> | null
+}
 
 export default async function InvoicesPage({
   searchParams,
@@ -31,14 +36,14 @@ export default async function InvoicesPage({
 
   if (q) {
     const like = `%${escapeLike(q)}%`
-    query = query.or(`id.ilike.${like},customer.email.ilike.${like},customer.name.ilike.${like}`) as any
+    query = query.or(`id.ilike.${like},customer.email.ilike.${like},customer.name.ilike.${like}`)
   }
 
   const { data, error, count } = await query
   if (error) throw new Error(error.message)
 
-  const invoices = data || []
-  const totalCount = typeof count === 'number' ? count : invoices.length
+  const invoiceRows = (data ?? []) as InvoiceListRow[]
+  const totalCount = typeof count === 'number' ? count : invoiceRows.length
   const totalPages = totalCount === 0 ? 1 : Math.max(1, Math.ceil(totalCount / limit))
 
   if (totalCount === 0 && page !== 1) {
@@ -50,20 +55,26 @@ export default async function InvoicesPage({
   }
 
   const startItem = totalCount === 0 ? 0 : offset + 1
-  const endItem = totalCount === 0 ? 0 : offset + invoices.length
+  const endItem = totalCount === 0 ? 0 : offset + invoiceRows.length
   const hasPrevious = page > 1
   const hasNext = totalCount > 0 ? page < totalPages : false
 
-  const rows = invoices.map((r: any) => ({
-    id: r.id,
-    customer_name: r.customer?.name || r.customer?.email || r.customer?.id || null,
-    customer_email: r.customer?.email || null,
-    date_start: r.billing_start_date,
-    date_end: r.billing_end_date,
-    status: r.status,
-    total: r.total_amount_eur,
-    created_at: r.created_at,
-  }))
+  const rows = invoiceRows.map((invoice) => {
+    const customer = invoice.customer
+    const customerName = customer?.name
+    const customerEmail = customer?.email ?? null
+    const customerId = customer?.id
+    return {
+      id: invoice.id,
+      customer_name: customerName || customerEmail || customerId || null,
+      customer_email: customerEmail,
+      date_start: invoice.billing_start_date,
+      date_end: invoice.billing_end_date,
+      status: invoice.status,
+      total: invoice.total_amount_eur,
+      created_at: invoice.created_at,
+    }
+  })
 
   const topbar = (
     <>

@@ -20,6 +20,11 @@ function clampExpires(seconds: number | null | undefined): number {
   return Math.min(Math.max(n, 10), max)
 }
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  return String(error)
+}
+
 export async function GET(req: NextRequest) {
   const adminClient = getAdminClient()
   try {
@@ -45,11 +50,11 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: { 'content-type': 'application/json; charset=utf-8' }
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     const status = err instanceof HttpError ? err.status : 500
     const message = err instanceof HttpError ? err.message : 'Internal server error'
     if (!(err instanceof HttpError)) {
-      await logAudit({ event: 'signed_url_failed', entity: 'storage', level: 'error', meta: { step: 'unhandled', error: String(err?.message || err) } })
+      await logAudit({ event: 'signed_url_failed', entity: 'storage', level: 'error', meta: { step: 'unhandled', error: getErrorMessage(err) } })
     }
     return new Response(JSON.stringify({ error: message }), { status, headers: { 'content-type': 'application/json; charset=utf-8' } })
   }
