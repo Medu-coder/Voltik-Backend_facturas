@@ -19,9 +19,10 @@ export async function GET(req: Request) {
   }
 
   const supabase = supabaseRoute()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) return ok({ error: 'No session' }, 401)
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return ok({ error: 'No session' }, 401)
-  const { access_token, refresh_token, user } = session
+  if (!session || session.user?.id !== user.id) return ok({ error: 'Session mismatch' }, 401)
+  const { access_token, refresh_token } = session
   return ok({ access_token, refresh_token, user })
 }
-

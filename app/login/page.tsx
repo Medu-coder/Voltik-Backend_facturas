@@ -4,8 +4,8 @@ import LoginForm from './login-form'
 
 export default async function LoginPage() {
   const supabase = supabaseServer()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (session) redirect('/dashboard')
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (!error && user) redirect('/dashboard')
 
   return (
     <main className="container">
@@ -17,4 +17,3 @@ export default async function LoginPage() {
     </main>
   )
 }
-

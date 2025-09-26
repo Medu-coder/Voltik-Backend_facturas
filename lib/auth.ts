@@ -12,28 +12,31 @@ function isAdminEmail(email: string | undefined | null): boolean {
   return allowed.includes(email.toLowerCase())
 }
 
-function hasAdminRole(session: any): boolean {
-  const role = session?.user?.app_metadata?.role
-  const isAdminFlag = session?.user?.app_metadata?.admin
+function hasAdminRole(user: any): boolean {
+  const role = user?.app_metadata?.role
+  const isAdminFlag = user?.app_metadata?.admin
   return role === 'admin' || isAdminFlag === true
 }
 
 export async function requireAdmin() {
   const supabase = supabaseServer()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) redirect('/login')
-  const email = session.user?.email
-  if (!hasAdminRole(session) && !isAdminEmail(email)) {
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) redirect('/login')
+
+  const email = user.email
+  if (!hasAdminRole(user) && !isAdminEmail(email)) {
     redirect('/login')
   }
-  return session
+  return user
 }
 
 export async function getAdminSession() {
   const supabase = supabaseServer()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return null
-  const email = session.user?.email
-  if (!hasAdminRole(session) && !isAdminEmail(email)) return null
-  return session
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) return null
+
+  const email = user.email
+  if (!hasAdminRole(user) && !isAdminEmail(email)) return null
+
+  return user
 }
