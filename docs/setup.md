@@ -34,6 +34,12 @@ Crea un archivo `.env.local` en la raíz del proyecto. **Nunca** subas este arch
 | `INBOUND_EMAIL_SECRET` | Servidor | Sí | Firma las peticiones del webhook de email entrante. |
 | `STORAGE_INVOICES_BUCKET` | Servidor | No (default `invoices`) | Nombre del bucket privado en Supabase Storage. |
 | `STORAGE_SIGNED_URL_TTL_SECS` | Servidor | No (default `120`) | Tiempo de vida (segundos) de las URLs firmadas para descargas. |
+| `PUBLIC_INTAKE_ALLOWED_ORIGINS` | Servidor | Recomendado | Lista separada por comas de orígenes permitidos para `/api/public/intake`. Dejar vacío en desarrollo. |
+| `PUBLIC_INTAKE_SHARED_SECRET` | Servidor | Opcional | Token compartido para validar formularios públicos (si no se usa captcha). |
+| `PUBLIC_INTAKE_CAPTCHA_SECRET` | Servidor | Opcional | Clave secreta de hCaptcha/Recaptcha para verificar `captcha_token`. |
+| `PUBLIC_INTAKE_RATE_LIMIT` | Servidor | No (default `5`) | Número de envíos permitidos por IP en la ventana configurada. |
+| `PUBLIC_INTAKE_RATE_WINDOW_MS` | Servidor | No (default `60000`) | Ventana del rate limit en ms. |
+| `PUBLIC_INTAKE_ACTOR_ID` | Servidor | Sí (cuando se usa intake público) | UUID utilizado como `actor_user_id` en auditoría para submissions públicas. |
 | `NODE_ENV` | Servidor | Sí en despliegue | Define el modo (`production`/`development`). Rutas de debug solo funcionan en `development`. |
 
 > **Consejo**: usa un gestor de secretos (Supabase/Vercel) para entornos productivos en lugar de variables planas.

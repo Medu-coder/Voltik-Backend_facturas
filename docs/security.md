@@ -8,6 +8,7 @@ Esta guía resume los controles de seguridad actuales y las acciones recomendada
 - **RLS activas**: `core.is_admin()` y políticas específicas limitan acceso a `core.customers`, `core.invoices` y `core.audit_logs`.
 - **Storage privado**: bucket `invoices` con políticas que exigen rol admin/service o metadata del owner.
 - **Audit logs**: `lib/logger.ts` registra eventos relevantes en `core.audit_logs` usando el service role.
+- **Intake público protegido**: `/api/public/intake` exige captcha/secreto, limita envíos por IP y usa un actor dedicado (`PUBLIC_INTAKE_ACTOR_ID`).
 
 ## 2. Gestión de secretos
 - **Nunca** comitees claves reales al repositorio (rotar las existentes en `supabase/SUPABASE_CONFIG.md` si aún no se ha hecho).
@@ -15,6 +16,7 @@ Esta guía resume los controles de seguridad actuales y las acciones recomendada
 - Usa gestores de secretos (Vercel, 1Password, Vault) para entornos productivos.
 - Regenera los tokens (`SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`, `SUPABASE_JWT_SECRET`) tras cada incidente o fuga.
 - Para la CI define un `SUPABASE_DB_URL` read-only (GitHub Secret) y evita subirlo a `.env.local`.
+- Configura `PUBLIC_INTAKE_SHARED_SECRET` o `PUBLIC_INTAKE_CAPTCHA_SECRET` y rota `PUBLIC_INTAKE_ACTOR_ID` periódicamente.
 
 ## 3. Control de acceso
 - **Autenticación**: Supabase Magic Link (`/api/auth/callback`).
@@ -22,6 +24,7 @@ Esta guía resume los controles de seguridad actuales y las acciones recomendada
   - `requireAdmin()` valida rol y lista blanca de emails.
   - `assertAdminFromAuthHeader()` verifica tokens Bearer usando `SUPABASE_JWT_SECRET`.
   - Endpoints internos usan `INTERNAL_API_SECRET` (`/api/upload`, `/api/debug/session`).
+- **Flujo público**: valida `Origin` contra `PUBLIC_INTAKE_ALLOWED_ORIGINS`, captcha o secreto compartido y aplica rate limit por IP.
 - **Operaciones críticas** (upload, fallback del webhook) siempre se ejecutan en el servidor con credenciales `service_role`.
 
 ## 4. Supabase RLS y Storage
@@ -30,7 +33,7 @@ Esta guía resume los controles de seguridad actuales y las acciones recomendada
   - `core.audit_logs`: lectura admin; escritura service role.
 - **Storage** (`storage.objects`):
   - Admin/service role pueden leer/escribir el bucket `invoices`.
-  - Lectura por owners depende de metadata (`customer_id`, `actor_user_id`). `persistInvoicePdf` garantiza que tanto `/api/upload` como el webhook de email adjunten esos campos.
+  - Lectura por owners depende de metadata (`customer_id`, `actor_user_id`). `ingestInvoiceSubmission` garantiza que `/api/upload`, el webhook y el intake público adjunten esos campos.
   - URLs firmadas se limitan a 10–300 segundos (`clampExpires`).
 
 ## 5. Protección de datos personales
@@ -38,6 +41,7 @@ Esta guía resume los controles de seguridad actuales y las acciones recomendada
 - Logs (`core.audit_logs`) incluyen emails y subjects. Define política de retención (p.ej. 90 días) y anonimiza cuando no sea necesario almacenar PII completa.
 - Enmascara emails en rutas públicas y evita loguear tokens/secrets.
 - Revisa periódicamente el bucket y elimina facturas expiradas según política de retención.
+- El actor de intake público aparece en auditoría; monitoriza eventos `public_intake_*` para detectar abuso.
 
 ## 6. Checklist de seguridad continua
 - [ ] Revisar `core.audit_logs` semanalmente en busca de eventos `level='error'`.
@@ -45,6 +49,7 @@ Esta guía resume los controles de seguridad actuales y las acciones recomendada
 - [ ] Ejecutar un test de subida (`curl` o UploadForm) tras rotar secretos.
 - [ ] Validar que los endpoints legacy (`/api/invoices/export.csv`) siguen restringidos y evalúa consolidarlos.
 - [ ] Documentar cualquier cambio de RLS en `docs/adr/` (nueva política, nuevas tablas).
+- [ ] Revisar logs de `public_intake_*` y ajustar rate limit/captcha ante picos sospechosos.
 
 ## 7. Plan de respuesta ante incidentes
 1. Revocar claves (`SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`, `INTERNAL_API_SECRET`).

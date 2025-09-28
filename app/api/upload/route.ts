@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
 import { supabaseRoute } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { ensureCustomer } from '@/lib/customers'
 import { isAdminUser } from '@/lib/auth'
-import { logAudit } from '@/lib/logger'
-import { persistInvoicePdf, InvoicePersistError } from '@/lib/invoices/upload'
+import { ingestInvoiceSubmission } from '@/lib/invoices/intake'
+import { HttpError } from '@/lib/supabase'
 
 function parseBearer(h?: string | null) {
   if (!h) return null
@@ -40,71 +39,31 @@ export async function POST(req: Request) {
 
   const admin = supabaseAdmin()
 
-  let customer
   try {
-    customer = await ensureCustomer(admin, { name: customer_name, email: customer_email, userId: actingUserId })
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Customer resolution failed'
-    await logAudit({
-      event: 'invoice_upload_customer_error',
-      entity: 'customer',
-      level: 'error',
-      meta: { message, email: customer_email }
-    })
-    return NextResponse.json({ error: message }, { status: 400 })
-  }
-
-  try {
-    const { invoiceId, storagePath } = await persistInvoicePdf({
+    const { invoiceId } = await ingestInvoiceSubmission({
       admin,
       file,
-      customerId: customer.id,
-      customerEmail: customer.email || customer_email,
+      customerName: customer_name,
+      customerEmail: customer_email,
       actorUserId: actingUserId,
       bucket,
-    })
-
-    await logAudit({
-      event: 'invoice_upload_success',
-      entity: 'invoice',
-      entity_id: invoiceId,
-      customer_id: customer.id,
-      actor_user_id: actingUserId,
-      meta: { path: storagePath }
+      events: {
+        received: 'invoice_upload_received',
+        customerError: 'invoice_upload_customer_error',
+        failure: 'invoice_upload_failed',
+        success: 'invoice_upload_success',
+      },
     })
 
     return NextResponse.json({ ok: true, id: invoiceId })
   } catch (err: unknown) {
-    if (err instanceof InvoicePersistError) {
-      const meta = {
-        step: err.step,
-        error: err.message,
-        storage_path: err.storagePath,
-        invoice_id: err.invoiceId,
-      }
-      const baseLog = {
-        customer_id: customer.id,
-        actor_user_id: actingUserId,
-        meta,
-      }
-      if (err.step === 'insert') {
-        await logAudit({
-          event: 'invoice_upload_failed',
-          entity: 'invoice',
-          level: 'error',
-          entity_id: err.invoiceId,
-          ...baseLog,
-        })
-      } else {
-        await logAudit({
-          event: 'invoice_upload_failed',
-          entity: 'storage',
-          level: 'error',
-          ...baseLog,
-        })
-      }
-      return NextResponse.json({ error: err.message }, { status: 500 })
+    if (err instanceof HttpError) {
+      return NextResponse.json({ error: err.message }, { status: err.status })
     }
-    throw err
+    if (err instanceof Error) {
+      // eslint-disable-next-line no-console
+      console.error('[api/upload] unexpected error', err)
+    }
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

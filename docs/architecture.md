@@ -33,7 +33,7 @@ flowchart LR
 
 ### Principales módulos
 - `app/` – Rutas server (dashboard, invoices, customers, upload, login) + componentes específicos.
-- `app/api/` – Endpoints REST para subida, email inbound, exportaciones, signed URLs y herramientas dev.
+- `app/api/` – Endpoints REST (subida admin, email inbound, intake público, exportaciones, signed URLs) y herramientas dev.
 - `lib/` – Clientes Supabase (`supabase/admin|server|client`), helpers de auth, lógica de dashboard (`lib/invoices/dashboard`), persistencia de facturas (`lib/invoices/upload`), formateadores (`date`, `number`), logger de auditoría.
 - `components/` – Componentes compartidos (tabla de facturas, layout de dashboard, formularios, toaster, json viewer).
 - `supabase/` – Migraciones SQL, esquema exportado y configuraciones de referencia.
@@ -41,13 +41,18 @@ flowchart LR
 ## 2. Flujos principales
 ### Subida manual de facturas
 1. `UploadForm` (client) envía un `FormData` a `/api/upload`.
-2. La route valida sesión admin o `X-INTERNAL-KEY`, normaliza cliente con `ensureCustomer` y sube el PDF a Storage mediante el cliente `service_role`.
+2. La route valida sesión admin o `X-INTERNAL-KEY`, normaliza cliente con `ensureCustomer` y delega en `ingestInvoiceSubmission` para subir el PDF con metadata obligatoria.
 3. Inserta `core.invoices` (`status='pending'`) y responde con el `invoiceId`.
 
 ### Email entrante (`/api/email/inbound`)
 1. Valida `X-INBOUND-SECRET` y extrae remitente/adjuntos.
 2. Resuelve/crea el cliente con `ensureCustomer`.
-3. Reutiliza el helper `persistInvoicePdf` para subir el PDF y crear la factura con metadata consistente, registrando eventos en `core.audit_logs`.
+3. Reutiliza `ingestInvoiceSubmission` para subir el PDF y crear la factura con metadata consistente, registrando eventos en `core.audit_logs`.
+
+### Intake público (`/api/public/intake`)
+1. Valida el `Origin` frente a `PUBLIC_INTAKE_ALLOWED_ORIGINS` y aplica limitador por IP (`lib/security/rate-limit.ts`).
+2. Verifica captcha o secreto compartido (`lib/security/captcha.ts`).
+3. Construye nombre/email y delega en `ingestInvoiceSubmission` (`lib/invoices/intake.ts`) reutilizando la misma lógica que el panel admin y el webhook.
 
 ### Dashboard (`/dashboard`)
 1. `fetchDashboardData` ejecuta la RPC `core.dashboard_invoice_aggregates` y una consulta limitada de facturas.

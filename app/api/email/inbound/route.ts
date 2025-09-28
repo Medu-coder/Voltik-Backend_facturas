@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { getAdminClient, HttpError } from '../../../../lib/supabase'
 import { logAudit } from '../../../../lib/logger'
 import { ensureCustomer } from '@/lib/customers'
-import { persistInvoicePdf, InvoicePersistError } from '@/lib/invoices/upload'
+import { ingestInvoiceSubmission } from '@/lib/invoices/intake'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -105,51 +105,40 @@ export async function POST(req: NextRequest) {
       throw new HttpError(400, message || 'Customer resolution failed')
     }
 
-    // Clone the file to avoid stream issues when accessing the Blob multiple times
     const buf = await pdf.arrayBuffer()
     const cloned = new Blob([buf], { type: 'application/pdf' })
     const actorId = (customer.user_id && /[0-9a-f-]{36}/i.test(customer.user_id)) ? customer.user_id : (process.env.ADMIN_USER_ID || 'system')
     const issuedAt = new Date()
 
-    try {
-      const { invoiceId, storagePath } = await persistInvoicePdf({
-        admin,
-        file: cloned,
-        customerId: customer.id,
-        customerEmail: customer.email || fromEmail,
-        actorUserId: actorId,
-        issuedAt,
-      })
-      await logAudit({
-        event: 'email_inbound_delegated',
-        entity: 'system',
-        meta: {
-          invoice_id: invoiceId,
-          storage_path: storagePath,
-          via: 'helper',
-        },
-      })
-      return new Response(JSON.stringify({ ok: true, id: invoiceId }), {
-        status: 200,
-        headers: { 'content-type': 'application/json; charset=utf-8' },
-      })
-    } catch (persistErr: unknown) {
-      if (persistErr instanceof InvoicePersistError) {
-        await logAudit({
-          event: 'email_inbound_failed',
-          entity: 'system',
-          level: 'error',
-          meta: {
-            step: persistErr.step,
-            error: persistErr.message,
-            invoice_id: persistErr.invoiceId,
-            storage_path: persistErr.storagePath,
-          },
-        })
-        throw new HttpError(500, persistErr.message)
-      }
-      throw persistErr
-    }
+    const { invoiceId, storagePath } = await ingestInvoiceSubmission({
+      admin,
+      file: cloned,
+      customerName,
+      customerEmail: fromEmail,
+      actorUserId: actorId,
+      issuedAt,
+      customer,
+      events: {
+        received: undefined,
+        customerError: undefined,
+        failure: 'email_inbound_failed',
+        success: undefined,
+      },
+    })
+
+    await logAudit({
+      event: 'email_inbound_delegated',
+      entity: 'system',
+      meta: {
+        invoice_id: invoiceId,
+        storage_path: storagePath,
+        via: 'helper',
+      },
+    })
+    return new Response(JSON.stringify({ ok: true, id: invoiceId }), {
+      status: 200,
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+    })
   } catch (err: unknown) {
     const status = err instanceof HttpError ? err.status : 500
     const message = err instanceof HttpError ? err.message : 'Internal server error'
