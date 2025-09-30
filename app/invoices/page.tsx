@@ -9,7 +9,7 @@ import type { Database } from '@/lib/types/supabase'
 const PAGE_SIZE = 50
 
 type InvoiceListRow = Database['core']['Tables']['invoices']['Row'] & {
-  customer: Pick<Database['core']['Tables']['customers']['Row'], 'id' | 'name' | 'email'> | null
+  customer: Pick<Database['core']['Tables']['customers']['Row'], 'id' | 'name' | 'email' | 'mobile_phone'> | null
 }
 
 export default async function InvoicesPage({
@@ -28,7 +28,7 @@ export default async function InvoicesPage({
   let query = admin
     .from('invoices')
     .select(
-      'id, created_at, status, total_amount_eur, billing_start_date, billing_end_date, customer:customer_id (id, name, email)',
+      'id, created_at, status, total_amount_eur, billing_start_date, billing_end_date, customer:customer_id (id, name, email, mobile_phone)',
       { count: 'exact' }
     )
     .order('created_at', { ascending: false })
@@ -36,7 +36,9 @@ export default async function InvoicesPage({
 
   if (q) {
     const like = `%${escapeLike(q)}%`
-    query = query.or(`id.ilike.${like},customer.email.ilike.${like},customer.name.ilike.${like}`)
+    query = query.or(
+      `id.ilike.${like},customer.email.ilike.${like},customer.name.ilike.${like},customer.mobile_phone.ilike.${like}`
+    )
   }
 
   const { data, error, count } = await query
@@ -63,11 +65,13 @@ export default async function InvoicesPage({
     const customer = invoice.customer
     const customerName = customer?.name
     const customerEmail = customer?.email ?? null
+    const customerPhone = customer?.mobile_phone ?? null
     const customerId = customer?.id
     return {
       id: invoice.id,
       customer_name: customerName || customerEmail || customerId || null,
       customer_email: customerEmail,
+      customer_phone: customerPhone,
       date_start: invoice.billing_start_date,
       date_end: invoice.billing_end_date,
       status: invoice.status,

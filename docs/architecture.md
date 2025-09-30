@@ -62,7 +62,7 @@ flowchart LR
 ## 3. Modelo de datos (schema `core`)
 | Tabla / función | Propósito | Campos clave / notas |
 | --- | --- | --- |
-| `core.customers` | Clientes vinculados a `auth.users`. | `id uuid`, `user_id uuid` (owner), `email` + índice único `customers_email_name_idx`, triggers `trg_customers_set_updated_at`. |
+| `core.customers` | Clientes vinculados a `auth.users`. | `id uuid`, `user_id uuid` (owner), `name`, `email`, `mobile_phone`, índice único `customers_email_name_idx`, trigger `trg_customers_set_updated_at`. |
 | `core.invoices` | Facturas y metadatos. | FK `customer_id`, `storage_object_path`, fechas de facturación, `status` (`pending`, `processed`, `error`, `reprocess`, `done`), índices por `created_at`, `(status, created_at desc)` y `(customer_id, issue_date, status)`, trigger `trg_invoices_set_updated_at`. |
 | `core.audit_logs` | Registro de eventos de auditoría. | `event`, `entity`, `level`, `meta jsonb`, secuencia `core.audit_logs_id_seq`. |
 | `core.dashboard_invoice_aggregates(p_from, p_to, p_query)` | RPC para dashboard (JSON). | Devuelve totales, buckets mensuales, status breakdown. Ejecuta con `security definer` y requiere índices previos. |

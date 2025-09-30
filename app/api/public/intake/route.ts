@@ -60,6 +60,11 @@ function buildCustomerName(firstName: string | null, lastName: string | null): s
   return full
 }
 
+function normalizePhone(value: string | null): string | null {
+  const phone = (value || '').trim()
+  return phone.length > 0 ? phone : null
+}
+
 function validateFile(file: File | null): File {
   if (!file) throw new HttpError(400, 'Missing file')
   if (file.type !== 'application/pdf') throw new HttpError(400, 'Invalid file type')
@@ -93,6 +98,7 @@ export async function POST(req: NextRequest) {
   const firstName = form.get('first_name') as string | null
   const lastName = form.get('last_name') as string | null
   const email = normalizeEmail(form.get('email') as string | null)
+  const phone = normalizePhone((form.get('phone') as string | null) ?? (form.get('mobile_phone') as string | null))
   assertPrivacyAck(form.get('privacy_ack') as string | null)
   const captchaToken = (form.get('captcha_token') as string | null) || ''
 
@@ -118,6 +124,7 @@ export async function POST(req: NextRequest) {
       file,
       customerName,
       customerEmail: email,
+      customerPhone: phone,
       actorUserId: actorId,
       issuedAt,
       events: {

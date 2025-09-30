@@ -21,12 +21,13 @@ export default async function CustomerDetail({ params }: { params: { id: string 
     id: string
     name: string | null
     email: string | null
+    mobile_phone: string | null
     created_at: string | null
   }
 
   const { data: customerData, error } = await admin
     .from('customers')
-    .select('id, name, email, created_at')
+    .select('id, name, email, mobile_phone, created_at')
     .eq('id', params.id)
     .single<CustomerRecord>()
   if (error || !customerData) return notFound()
@@ -43,7 +44,8 @@ export default async function CustomerDetail({ params }: { params: { id: string 
   const rows = invoiceRows.map((inv) => ({
     id: inv.id,
     customer_name: customer.name || customer.email || customer.id,
-    customer_email: customer.email || '—',
+    customer_email: customer.email || null,
+    customer_phone: customer.mobile_phone || null,
     date_start: inv.billing_start_date,
     date_end: inv.billing_end_date,
     status: inv.status,
@@ -70,6 +72,7 @@ export default async function CustomerDetail({ params }: { params: { id: string 
         <div>
           <h1>{customer.name || customer.email}</h1>
           <p className="muted">{customer.email}</p>
+          {customer.mobile_phone && <p className="muted">{customer.mobile_phone}</p>}
         </div>
         <div className="page-header__actions">
           <Link className="btn btn-secondary" href="/customers">Ver todos</Link>
@@ -82,6 +85,7 @@ export default async function CustomerDetail({ params }: { params: { id: string 
         <dl className="definition-grid">
           <div><dt>Nombre</dt><dd>{customer.name || '—'}</dd></div>
           <div><dt>Email</dt><dd>{customer.email || '—'}</dd></div>
+          <div><dt>Teléfono</dt><dd>{customer.mobile_phone || '—'}</dd></div>
           <div><dt>Creado</dt><dd>{formatDate(customer.created_at)}</dd></div>
           <div><dt>Nº de facturas</dt><dd>{invoices?.length || 0}</dd></div>
         </dl>

@@ -2910,6 +2910,7 @@ CREATE TABLE core.customers (
     user_id uuid NOT NULL,
     name text,
     email text,
+    mobile_phone text,
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -5311,4 +5312,3 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA storage GRANT ALL ON TABLES
 --
 
 \unrestrict 0FQhUUyRwouutVkUxbO2eetRCtcLvdkpUNw7RN69jvwVeWlmQ1mBgaaPFlYJ0dZ
-

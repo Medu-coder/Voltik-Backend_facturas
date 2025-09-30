@@ -17,6 +17,7 @@ export type IntakeParams = {
   file: Blob | File | ArrayBuffer | Uint8Array
   customerName: string
   customerEmail: string
+  customerPhone?: string | null
   actorUserId: string
   bucket?: string
   issuedAt?: Date
@@ -46,6 +47,7 @@ export async function ingestInvoiceSubmission(params: IntakeParams): Promise<Int
     file,
     customerName,
     customerEmail,
+    customerPhone,
     actorUserId,
     bucket,
     issuedAt,
@@ -67,7 +69,12 @@ export async function ingestInvoiceSubmission(params: IntakeParams): Promise<Int
   let customer = providedCustomer
   if (!customer) {
     try {
-      customer = await ensureCustomer(admin, { name: customerName, email: customerEmail, userId: actorUserId })
+      customer = await ensureCustomer(admin, {
+        name: customerName,
+        email: customerEmail,
+        userId: actorUserId,
+        mobilePhone: customerPhone ?? null,
+      })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Customer resolution failed'
       await logEvent(customerErrorEvent, {

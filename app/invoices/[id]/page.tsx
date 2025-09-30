@@ -8,7 +8,7 @@ import AppShell from '@/components/AppShell'
 import type { Database } from '@/lib/types/supabase'
 
 type InvoiceDetailRow = Database['core']['Tables']['invoices']['Row'] & {
-  customer?: Pick<Database['core']['Tables']['customers']['Row'], 'id' | 'name' | 'email'> | null
+  customer?: Pick<Database['core']['Tables']['customers']['Row'], 'id' | 'name' | 'email' | 'mobile_phone'> | null
 }
 
 export default async function InvoiceDetail({ params }: { params: { id: string } }) {
@@ -17,13 +17,13 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
   // Fetch invoice
   const { data, error } = await admin
     .from('invoices')
-    .select('*, customer:customer_id (id, name, email)')
+    .select('*, customer:customer_id (id, name, email, mobile_phone)')
     .eq('id', params.id)
     .single<InvoiceDetailRow>()
   if (error || !data) return notFound()
 
   const invoice = data as InvoiceDetailRow
-  const customer = invoice.customer ?? { id: null, name: null, email: null }
+  const customer = invoice.customer ?? { id: null, name: null, email: null, mobile_phone: null }
 
   const downloadHref = `/api/invoices/${params.id}/download`
   const reprocessHref = `/api/invoices/${params.id}/reprocess`
@@ -61,6 +61,7 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
         <dl className="definition-grid">
           <div><dt>Cliente</dt><dd>{customer.name || customer.email || invoice.customer_id}</dd></div>
           <div><dt>Email</dt><dd>{customer.email || '—'}</dd></div>
+          <div><dt>Teléfono</dt><dd>{customer.mobile_phone || '—'}</dd></div>
           <div><dt>Periodo</dt><dd>{formatDate(invoice.billing_start_date)} — {formatDate(invoice.billing_end_date)}</dd></div>
           <div><dt>Fecha emisión</dt><dd>{formatDate(invoice.issue_date)}</dd></div>
           <div><dt>Estado</dt><dd><span className={`badge badge-${badge(invoice.status)}`}>{invoice.status}</span></dd></div>

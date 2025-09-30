@@ -19,6 +19,7 @@ export type DashboardInvoiceRow = {
     id: string | null
     name: string | null
     email: string | null
+    mobile_phone: string | null
   } | null
 }
 
@@ -26,6 +27,7 @@ export type DashboardTableRow = {
   id: string
   customer_name: string | null
   customer_email: string | null
+  customer_phone: string | null
   date_start: string | null
   date_end: string | null
   status: string | null
@@ -113,7 +115,7 @@ const STATUS_CATEGORIES: Array<{
 ]
 
 type InvoiceQueryResult = Database['core']['Tables']['invoices']['Row'] & {
-  customer?: Pick<Database['core']['Tables']['customers']['Row'], 'id' | 'name' | 'email'> | null
+  customer?: Pick<Database['core']['Tables']['customers']['Row'], 'id' | 'name' | 'email' | 'mobile_phone'> | null
 }
 
 type AggregatesRaw = {
@@ -196,6 +198,7 @@ export async function fetchDashboardData(
       id: row.id,
       customer_name: row.customer?.name || row.customer?.email || row.customer?.id || null,
       customer_email: row.customer?.email || null,
+      customer_phone: row.customer?.mobile_phone || null,
       date_start: row.billing_start_date,
       date_end: row.billing_end_date,
       status: row.status,
@@ -257,7 +260,7 @@ function buildInvoicesQuery(
   let query = admin
     .from('invoices')
     .select(
-      'id, created_at, status, total_amount_eur, billing_start_date, billing_end_date, customer:customer_id (id, name, email)'
+      'id, created_at, status, total_amount_eur, billing_start_date, billing_end_date, customer:customer_id (id, name, email, mobile_phone)'
     )
     .gte('created_at', filters.from)
     .lte('created_at', filters.to)
@@ -266,7 +269,7 @@ function buildInvoicesQuery(
   if (filters.q) {
     const like = `%${filters.q.replace(/%/g, '\\%').replace(/_/g, '\\_')}%`
     query = query.or(
-      `id.ilike.${like},customer.email.ilike.${like},customer.name.ilike.${like}`
+      `id.ilike.${like},customer.email.ilike.${like},customer.name.ilike.${like},customer.mobile_phone.ilike.${like}`
     ) as typeof query
   }
 
@@ -290,6 +293,7 @@ function normalizeInvoiceRow(row: InvoiceQueryResult): DashboardInvoiceRow {
           id: row.customer.id ?? null,
           name: row.customer.name ?? null,
           email: row.customer.email ?? null,
+          mobile_phone: row.customer.mobile_phone ?? null,
         }
       : null,
   }

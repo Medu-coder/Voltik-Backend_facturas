@@ -29,6 +29,8 @@ export async function POST(req: Request) {
   const file = form.get('file') as File | null
   const customer_name = String(form.get('customer_name') || '')
   const customer_email = String(form.get('customer_email') || '')
+  const customer_phone_raw = form.get('customer_phone')
+  const customer_phone = typeof customer_phone_raw === 'string' ? customer_phone_raw : ''
   if (!file) return NextResponse.json({ error: 'Missing file' }, { status: 400 })
   if (!customer_name.trim()) return NextResponse.json({ error: 'Missing customer_name' }, { status: 400 })
   if (!customer_email.trim()) return NextResponse.json({ error: 'Missing customer_email' }, { status: 400 })
@@ -45,6 +47,7 @@ export async function POST(req: Request) {
       file,
       customerName: customer_name,
       customerEmail: customer_email,
+      customerPhone: customer_phone,
       actorUserId: actingUserId,
       bucket,
       events: {

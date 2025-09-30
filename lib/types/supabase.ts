@@ -21,6 +21,7 @@ export type Database = {
           user_id: string
           name: string | null
           email: string | null
+          mobile_phone: string | null
           is_active: boolean
           created_at: string
           updated_at: string
@@ -30,6 +31,7 @@ export type Database = {
           user_id: string
           name?: string | null
           email?: string | null
+          mobile_phone?: string | null
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -39,6 +41,7 @@ export type Database = {
           user_id?: string
           name?: string | null
           email?: string | null
+          mobile_phone?: string | null
           is_active?: boolean
           created_at?: string
           updated_at?: string

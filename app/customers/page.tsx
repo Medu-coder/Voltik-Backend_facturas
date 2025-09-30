@@ -9,6 +9,7 @@ type CustomerRow = {
   id: string
   name: string
   email: string
+  mobilePhone: string | null
   invoiceCount: number
   lastInvoiceAt: string | null
 }
@@ -34,12 +35,14 @@ export default async function CustomersPage({
 
   let customersQuery = admin
     .from('customers')
-    .select('id, name, email, created_at, invoices:invoices(count)')
+    .select('id, name, email, mobile_phone, created_at, invoices:invoices(count)')
     .order('name', { ascending: true })
 
   if (q) {
     const like = `%${escapeLike(q)}%`
-    customersQuery = customersQuery.or(`name.ilike.${like},email.ilike.${like}`) as typeof customersQuery
+    customersQuery = customersQuery.or(
+      `name.ilike.${like},email.ilike.${like},mobile_phone.ilike.${like}`
+    ) as typeof customersQuery
   }
 
   const { data: customersData, error } = await customersQuery
@@ -65,6 +68,7 @@ export default async function CustomersPage({
     id: c.id,
     name: c.name || '—',
     email: c.email || '—',
+    mobilePhone: c.mobile_phone || null,
     invoiceCount: c.invoices?.[0]?.count ?? 0,
     lastInvoiceAt: lastMap.get(c.id) || null,
   }))
@@ -116,7 +120,8 @@ export default async function CustomersPage({
                 <tr>
                   <th scope="col">Cliente</th>
                   <th scope="col">Email</th>
-                  <th scope="col" className="table-num">Facturas</th>
+                  <th scope="col">Teléfono</th>
+                  <th scope="col" className="table-num table-num--center">Facturas</th>
                   <th scope="col">Última factura</th>
                   <th scope="col" className="table-actions">Acciones</th>
                 </tr>
@@ -124,14 +129,15 @@ export default async function CustomersPage({
               <tbody>
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={5}><em>No hay clientes registrados todavía.</em></td>
+                    <td colSpan={6}><em>No hay clientes registrados todavía.</em></td>
                   </tr>
                 )}
                 {rows.map((row) => (
                   <tr key={row.id}>
                     <td>{row.name}</td>
                     <td>{row.email}</td>
-                    <td className="table-num">{row.invoiceCount}</td>
+                    <td>{row.mobilePhone || '—'}</td>
+                    <td className="table-num table-num--center">{row.invoiceCount}</td>
                     <td>{formatDate(row.lastInvoiceAt)}</td>
                     <td className="table-actions">
                       <Link className="btn btn-link" href={`/customers/${row.id}`}>

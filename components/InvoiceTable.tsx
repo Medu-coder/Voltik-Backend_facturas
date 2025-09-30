@@ -7,6 +7,7 @@ type Row = {
   id: string
   customer_name: string | null
   customer_email: string | null
+  customer_phone: string | null
   date_start: string | null
   date_end: string | null
   status: string | null
@@ -23,6 +24,7 @@ export default function InvoiceTable({ invoices }: { invoices: Row[] }) {
             <tr>
               <th scope="col">ID</th>
               <th scope="col">Email</th>
+              <th scope="col">Teléfono</th>
               <th scope="col">Cliente</th>
               <th scope="col">Periodo</th>
               <th scope="col">Estado</th>
@@ -33,7 +35,7 @@ export default function InvoiceTable({ invoices }: { invoices: Row[] }) {
           <tbody>
             {invoices.length === 0 && (
               <tr>
-                <td colSpan={7}>
+                <td colSpan={8}>
                   <em>No hay facturas registradas todavía.</em>
                 </td>
               </tr>
@@ -42,6 +44,7 @@ export default function InvoiceTable({ invoices }: { invoices: Row[] }) {
               <tr key={row.id}>
                 <td><code>{row.id.slice(0, 8)}</code></td>
                 <td>{row.customer_email || '—'}</td>
+                <td>{row.customer_phone || '—'}</td>
                 <td>{row.customer_name || '—'}</td>
                 <td>{formatDate(row.date_start)} — {formatDate(row.date_end)}</td>
                 <td><span className={`badge badge-${badge(row.status)}`}>{friendlyStatus(row.status)}</span></td>

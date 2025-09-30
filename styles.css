@@ -290,12 +290,15 @@
     border-radius: 0.75rem;
     color: hsl(var(--foreground));
     font-weight: 600;
+    font-size: var(--text-xs);
     transition: background-color var(--transition-fast), color var(--transition-fast);
+    text-decoration: none;
   }
 
   .nav-item:hover,
   .nav-item:focus-visible {
     background: hsl(var(--primary) / 0.25);
+    text-decoration: none;
   }
 
   .nav-item--active {
@@ -631,7 +634,9 @@
   }
 
   .table-responsive {
+    width: 100%;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .table {
@@ -645,7 +650,8 @@
     font-size: var(--text-xs);
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: hsl(var(--muted-foreground));
+    color: hsl(var(--foreground));
+    font-weight: 700;
     padding-bottom: 0.75rem;
   }
 
@@ -662,6 +668,10 @@
   .table-num {
     text-align: right;
     font-variant-numeric: tabular-nums;
+  }
+
+  .table-num--center {
+    text-align: center;
   }
 
   .table-actions {

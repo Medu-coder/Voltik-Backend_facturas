@@ -7,6 +7,7 @@ export default function UploadForm() {
   const [file, setFile] = useState<File | null>(null)
   const [customerName, setCustomerName] = useState('')
   const [customerEmail, setCustomerEmail] = useState('')
+  const [customerPhone, setCustomerPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
@@ -34,6 +35,9 @@ export default function UploadForm() {
       fd.append('file', file)
       fd.append('customer_name', customerName.trim())
       fd.append('customer_email', customerEmail.trim())
+      if (customerPhone.trim()) {
+        fd.append('customer_phone', customerPhone.trim())
+      }
       const res = await fetch('/api/upload', { method: 'POST', body: fd })
       if (!res.ok) throw new Error(await res.text())
       toast('Encolado para procesamiento', 'success')
@@ -69,6 +73,17 @@ export default function UploadForm() {
         required
         value={customerEmail}
         onChange={(e) => setCustomerEmail(e.target.value)}
+      />
+
+      <label className="label" htmlFor="customer_phone">Teléfono móvil</label>
+      <input
+        id="customer_phone"
+        name="customer_phone"
+        className="input"
+        type="tel"
+        placeholder="600 000 000"
+        value={customerPhone}
+        onChange={(e) => setCustomerPhone(e.target.value)}
       />
 
       <label className="label" htmlFor="file">PDF (≤10MB)</label>

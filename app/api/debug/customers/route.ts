@@ -25,7 +25,10 @@ export async function GET(req: Request) {
   if (!isAdminUser(user)) return ok({ error: 'Forbidden' }, 403)
 
   const admin = supabaseAdmin()
-  const { data, error } = await admin.from('customers').select('id,name,email').order('created_at', { ascending: true })
+  const { data, error } = await admin
+    .from('customers')
+    .select('id,name,email,mobile_phone')
+    .order('created_at', { ascending: true })
   if (error) return ok({ error: error.message }, 500)
   return ok({ items: data || [] })
 }
