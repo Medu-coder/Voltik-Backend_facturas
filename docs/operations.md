@@ -30,17 +30,17 @@ Guía para ejecutar tareas recurrentes (despliegues, mantenimiento, soporte) en 
 
 ## 4. Intake público (`/api/public/intake`)
 - Permite a formularios externos subir facturas sin sesión admin.
-- Requiere configurar: `PUBLIC_INTAKE_ALLOWED_ORIGINS`, `PUBLIC_INTAKE_ACTOR_ID`, y **uno** de `PUBLIC_INTAKE_SHARED_SECRET` (token estático) o `PUBLIC_INTAKE_CAPTCHA_SECRET` (hCaptcha/Recaptcha).
+- Requiere configurar: `PUBLIC_INTAKE_ALLOWED_ORIGINS`, `PUBLIC_INTAKE_ACTOR_ID`, y `PUBLIC_INTAKE_CAPTCHA_SECRET` (reCAPTCHA v3).
 - Rate limit configurable vía `PUBLIC_INTAKE_RATE_LIMIT` y `PUBLIC_INTAKE_RATE_WINDOW_MS`.
+- Campos requeridos: fecha, nombre, email, telefono, archivo (PDF), recaptchaToken.
 - Prueba rápida:
   ```bash
   curl -X POST https://<host>/api/public/intake \
     -H "Origin: https://<dominio_permitido>" \
-    -F "first_name=Ana" -F "last_name=Pérez" \
-    -F "email=ana@example.com" \
-    -F "privacy_ack=true" \
-    -F "captcha_token=$PUBLIC_INTAKE_SHARED_SECRET" \
-    -F "file=@./supabase/test.pdf;type=application/pdf"
+    -F "fecha=2024-01-15" -F "nombre=Ana Pérez" \
+    -F "email=ana@example.com" -F "telefono=+1234567890" \
+    -F "recaptchaToken=<token_reCAPTCHA_v3>" \
+    -F "archivo=@./supabase/test.pdf;type=application/pdf"
   ```
 - Auditoría: eventos `public_intake_received|success|failed` quedan en `core.audit_logs` con `actor_user_id = PUBLIC_INTAKE_ACTOR_ID`.
 

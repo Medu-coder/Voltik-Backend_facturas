@@ -36,7 +36,7 @@ export async function verifyCaptcha({ token, remoteIp }: VerifyOptions, config: 
     throw new CaptchaError('Captcha verification is not configured')
   }
 
-  const endpoint = config.verificationEndpoint ?? 'https://hcaptcha.com/siteverify'
+  const endpoint = config.verificationEndpoint ?? 'https://www.google.com/recaptcha/api/siteverify'
 
   const body = new URLSearchParams({
     secret: captchaSecret,

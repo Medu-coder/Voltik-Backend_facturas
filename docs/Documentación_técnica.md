@@ -56,9 +56,8 @@ Next.js App Router (app/*)
 | `INBOUND_EMAIL_SECRET` | firma para `/api/email/inbound` |
 | `STORAGE_INVOICES_BUCKET` | nombre del bucket (default `invoices`) |
 | `STORAGE_SIGNED_URL_TTL_SECS` | TTL en segundos para URLs firmadas (default 120) |
-| `PUBLIC_INTAKE_ALLOWED_ORIGINS` | lista de origenes permitidos para `/api/public/intake` |
-| `PUBLIC_INTAKE_SHARED_SECRET` | token simple alternativo a captcha en intake publico |
-| `PUBLIC_INTAKE_CAPTCHA_SECRET` | secreto hCaptcha/Recaptcha |
+| `PUBLIC_INTAKE_ALLOWED_ORIGINS` | lista de origenes permitidos para `/api/public/intake` (separados por comas) |
+| `PUBLIC_INTAKE_CAPTCHA_SECRET` | secreto reCAPTCHA v3 para verificación de tokens |
 | `PUBLIC_INTAKE_RATE_LIMIT` | solicitudes permitidas por IP (default 5) |
 | `PUBLIC_INTAKE_RATE_WINDOW_MS` | ventana del rate limit en ms (default 60000) |
 | `PUBLIC_INTAKE_ACTOR_ID` | UUID usado como `actor_user_id` en auditoria del intake publico |
@@ -135,7 +134,7 @@ Next.js App Router (app/*)
 | Ruta | Metodo | Auth | Proposito |
 | --- | --- | --- | --- |
 | `/api/email/inbound` | POST | `X-INBOUND-SECRET` | Webhook (p.ej. SendGrid). Extrae PDF y `from`, asegura cliente, sube factura (con eventos `email_inbound_*`). |
-| `/api/public/intake` | POST | Origin permitido + captcha/shared secret | Formularios publicos. Limita tamaño, acepta telefono opcional, hace rate limit por IP, crea factura con actor `PUBLIC_INTAKE_ACTOR_ID`. |
+| `/api/public/intake` | POST | Origin permitido + reCAPTCHA v3 | Formularios publicos. Acepta multipart/form-data con archivos PDF (max 10MB), valida reCAPTCHA v3, hace rate limit por IP, crea factura con actor `PUBLIC_INTAKE_ACTOR_ID`. Campos: fecha, nombre, email, telefono, archivo, recaptchaToken. |
 
 ### Herramientas de debug (solo `NODE_ENV=development`)
 | Ruta | Metodo | Descripcion |

@@ -9,6 +9,24 @@ import { logAudit } from '@/lib/logger'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin') || ''
+  const allowedOrigins = parseAllowedOrigins()
+  
+  // Verificar si el origin está permitido
+  const allowedOrigin = allowedOrigins.includes(origin) ? origin : (allowedOrigins.length === 0 ? '*' : allowedOrigins[0])
+  
+  return new Response(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': allowedOrigin,
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Origin',
+      'Access-Control-Max-Age': '86400',
+    },
+  })
+}
+
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024 // 10 MB
 
 function parseAllowedOrigins(): string[] {
@@ -78,6 +96,8 @@ export async function POST(req: NextRequest) {
     throw new Error('Missing PUBLIC_INTAKE_ACTOR_ID env var')
   }
 
+  const origin = req.headers.get('origin') || ''
+
   assertOriginAllowed(req)
 
   const clientIp = getClientIp(req)
@@ -94,29 +114,44 @@ export async function POST(req: NextRequest) {
   }
 
   const form = await req.formData()
-  const file = validateFile(form.get('file') as File | null)
-  const firstName = form.get('first_name') as string | null
-  const lastName = form.get('last_name') as string | null
+  
+  const file = validateFile(form.get('archivo') as File | null)
+  const fecha = form.get('fecha') as string | null
+  const nombre = form.get('nombre') as string | null
   const email = normalizeEmail(form.get('email') as string | null)
-  const phone = normalizePhone((form.get('phone') as string | null) ?? (form.get('mobile_phone') as string | null))
-  assertPrivacyAck(form.get('privacy_ack') as string | null)
-  const captchaToken = (form.get('captcha_token') as string | null) || ''
+  const telefono = normalizePhone(form.get('telefono') as string | null)
+  const recaptchaToken = (form.get('recaptchaToken') as string | null) || ''
+  
+  // Validar fecha
+  if (!fecha) {
+    throw new HttpError(400, 'Missing fecha field')
+  }
+  
+  // Validar nombre (usando el campo nombre en lugar de first_name/last_name)
+  if (!nombre || !nombre.trim()) {
+    throw new HttpError(400, 'Missing nombre field')
+  }
 
   try {
-    await verifyCaptcha({ token: captchaToken, remoteIp: clientIp })
+    await verifyCaptcha({ token: recaptchaToken, remoteIp: clientIp })
   } catch (err) {
     if (err instanceof CaptchaError) {
       return new Response(JSON.stringify({ error: err.message }), {
         status: err.status,
-        headers: { 'content-type': 'application/json; charset=utf-8' },
+        headers: { 
+          'content-type': 'application/json; charset=utf-8',
+          'Access-Control-Allow-Origin': origin || '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Origin',
+        },
       })
     }
     throw err
   }
 
   const admin = supabaseAdmin()
-  const customerName = buildCustomerName(firstName, lastName)
-  const issuedAt = new Date()
+  const customerName = nombre.trim()
+  const issuedAt = new Date(fecha)
 
   try {
     const { invoiceId } = await ingestInvoiceSubmission({
@@ -124,7 +159,7 @@ export async function POST(req: NextRequest) {
       file,
       customerName,
       customerEmail: email,
-      customerPhone: phone,
+      customerPhone: telefono,
       actorUserId: actorId,
       issuedAt,
       events: {
@@ -137,25 +172,46 @@ export async function POST(req: NextRequest) {
 
     return new Response(JSON.stringify({ ok: true, invoiceId }), {
       status: 200,
-      headers: { 'content-type': 'application/json; charset=utf-8' },
+      headers: { 
+        'content-type': 'application/json; charset=utf-8',
+        'Access-Control-Allow-Origin': origin || '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Origin',
+      },
     })
   } catch (err) {
     if (err instanceof RateLimitError) {
       return new Response(JSON.stringify({ error: err.message, retryAfter: err.retryAfter }), {
         status: 429,
-        headers: { 'content-type': 'application/json; charset=utf-8', 'retry-after': String(err.retryAfter) },
+        headers: { 
+          'content-type': 'application/json; charset=utf-8', 
+          'retry-after': String(err.retryAfter),
+          'Access-Control-Allow-Origin': origin || '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Origin',
+        },
       })
     }
     if (err instanceof HttpError) {
       return new Response(JSON.stringify({ error: err.message }), {
         status: err.status,
-        headers: { 'content-type': 'application/json; charset=utf-8' },
+        headers: { 
+          'content-type': 'application/json; charset=utf-8',
+          'Access-Control-Allow-Origin': origin || '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Origin',
+        },
       })
     }
     if (err instanceof CaptchaError) {
       return new Response(JSON.stringify({ error: err.message }), {
         status: err.status,
-        headers: { 'content-type': 'application/json; charset=utf-8' },
+        headers: { 
+          'content-type': 'application/json; charset=utf-8',
+          'Access-Control-Allow-Origin': origin || '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Origin',
+        },
       })
     }
     await logAudit({
@@ -167,7 +223,12 @@ export async function POST(req: NextRequest) {
     })
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
-      headers: { 'content-type': 'application/json; charset=utf-8' },
+      headers: { 
+        'content-type': 'application/json; charset=utf-8',
+        'Access-Control-Allow-Origin': origin || '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Origin',
+      },
     })
   }
 }
