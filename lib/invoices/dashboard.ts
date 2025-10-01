@@ -145,7 +145,7 @@ export async function fetchDashboardData(
       admin.rpc('dashboard_invoice_aggregates', {
         p_from: sanitized.from,
         p_to: sanitized.to,
-        p_query: sanitized.q ?? null,
+        p_query: sanitized.q ?? undefined,
       }),
       buildInvoicesQuery(
         admin,
