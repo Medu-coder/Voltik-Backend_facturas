@@ -12,6 +12,7 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  const type = requestUrl.searchParams.get('type')
 
   const origin = process.env.NEXT_PUBLIC_APP_URL || `${requestUrl.protocol}//${requestUrl.host}`
 
@@ -19,7 +20,12 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL('/login', origin))
   }
 
-  const response = NextResponse.redirect(new URL('/dashboard', origin))
+  // Para recuperación de contraseña, redirigir a una página de cambio de contraseña
+  const redirectUrl = type === 'recovery' 
+    ? new URL('/reset-password', origin)
+    : new URL('/dashboard', origin)
+
+  const response = NextResponse.redirect(redirectUrl)
   const cookieStore = cookies()
 
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
