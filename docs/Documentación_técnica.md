@@ -160,7 +160,7 @@ Next.js App Router (app/*)
 | `lib/invoices/intake.ts` | `ingestInvoiceSubmission`: orquesta `ensureCustomer`, `persistInvoicePdf`, registra auditoria personalizada (eventos configurables). |
 | `lib/invoices/dashboard.ts` | `fetchDashboardData`: ejecuta RPC `dashboard_invoice_aggregates`, arma comparativas mensuales, series diarias, breakdown de estados, tabla (max 20). Incluye utilidades para normalizar filtros y construir comparaciones año vs año. |
 | `lib/export/invoicesCsv.ts` | `fetchInvoiceRows`, `rowsToCsv`, `buildInvoicesCsv` con filtros por rango (`created_at` o `billing_period`). |
-| `lib/storage.ts` | `buildInvoiceStoragePath`: genera rutas `AAAA/MM/segmento_email/invoiceId.pdf`, sanitiza email. |
+| `lib/storage.ts` | `buildInvoiceStoragePath`: genera rutas `segmento_email/AAAA/MM/DD/invoiceId.pdf`, sanitiza email. |
 
 ### Seguridad y auditoria
 | Archivo | Resumen |
@@ -195,7 +195,7 @@ Next.js App Router (app/*)
 ### Storage y archivos
 - Bucket privado (default `invoices`).
 - Metadata obligatoria por politica: `customer_id`, `actor_user_id` (cargada en `persistInvoicePdf`).
-- Ruta generada por `buildInvoiceStoragePath` depende de fecha de emision (`issuedAt`): `YYYY/MM/email_sanitizado/invoiceId.pdf`.
+- Ruta generada por `buildInvoiceStoragePath` depende de fecha de emision (`issuedAt`): `email_sanitizado/YYYY/MM/DD/invoiceId.pdf`.
 
 ### Artefactos complementarios
 | Archivo | Proposito |

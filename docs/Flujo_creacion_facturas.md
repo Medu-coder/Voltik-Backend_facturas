@@ -31,7 +31,7 @@ Pasos:
 ## 3. Persistencia del PDF y la factura (`persistInvoicePdf`)
 Una vez resuelto el cliente:
 1. `persistInvoicePdf` genera un `invoiceId` (`crypto.randomUUID()`) y transforma el archivo en `Uint8Array`.
-2. Determina la ruta de almacenamiento `YYYY/MM/segmento_email/invoiceId.pdf`:
+2. Determina la ruta de almacenamiento `segmento_email/YYYY/MM/DD/invoiceId.pdf`:
    - `segmento_email` se deriva de `buildInvoiceStoragePath`, sustituyendo caracteres no permitidos por `_`.
    - Usa la fecha `issuedAt` (si se aporta) o la fecha actual.
 3. Sube el PDF a Supabase Storage (`bucket` privado, por defecto `invoices`) con metadata:

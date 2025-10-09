@@ -14,14 +14,16 @@ function sanitizeEmailSegment(email: string): string {
   return safe || 'cliente'
 }
 
-export function buildInvoiceStoragePath(invoiceId: string, email: string, issuedAt: Date = new Date()): { path: string; year: string; month: string; segment: string } {
+export function buildInvoiceStoragePath(invoiceId: string, email: string, issuedAt: Date = new Date()): { path: string; year: string; month: string; day: string; segment: string } {
   const year = String(issuedAt.getUTCFullYear())
   const month = String(issuedAt.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(issuedAt.getUTCDate()).padStart(2, '0')
   const segment = sanitizeEmailSegment(email || 'cliente')
   return {
-    path: `${year}/${month}/${segment}/${invoiceId}.pdf`,
+    path: `${segment}/${year}/${month}/${day}/${invoiceId}.pdf`,
     year,
     month,
+    day,
     segment,
   }
 }

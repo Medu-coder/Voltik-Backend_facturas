@@ -71,7 +71,7 @@ flowchart LR
 
 ## 4. Storage de facturas
 - Bucket privado configurado en Supabase (default `invoices`).
-- Ruta lógica: `AAAA/MM/<segmento_email>/<invoiceId>.pdf`. El segmento de email se sanitiza en `lib/storage.ts` sustituyendo caracteres no permitidos.
+- Ruta lógica: `<segmento_email>/AAAA/MM/DD/<invoiceId>.pdf`. El segmento de email se sanitiza en `lib/storage.ts` sustituyendo caracteres no permitidos.
 - Se espera adjuntar metadata `{ customer_id, actor_user_id }` en cada subida para cumplir las políticas de owner (`storage.objects`).
 
 ## 5. Autenticación y autorización
