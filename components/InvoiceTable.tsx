@@ -63,29 +63,25 @@ export default function InvoiceTable({ invoices }: { invoices: Row[] }) {
   )
 }
 function badge(status?: string | null) {
-  switch ((status || '').toLowerCase()) {
-    case 'queued':
-    case 'pending': return 'warn'
-    case 'processed':
-    case 'done': return 'ok'
-    case 'error': return 'error'
-    case 'reprocess': return 'warn'
+  switch (status) {
+    case 'Pendiente': return 'neutral'
+    case 'Ofertada': return 'warn'
+    case 'Tramitando': return 'warn'
+    case 'Contratando': return 'warn'
+    case 'Cancelado': return 'error'
+    case 'Contratado': return 'ok'
     default: return 'neutral'
   }
 }
 
 function friendlyStatus(status?: string | null) {
-  switch ((status || '').toLowerCase()) {
-    case 'processed':
-    case 'done':
-      return 'Procesada'
-    case 'error':
-      return 'Con incidencia'
-    case 'reprocess':
-      return 'Reprocesar'
-    case 'queued':
-    case 'pending':
-      return 'Pendiente'
+  switch (status) {
+    case 'Pendiente': return 'Pendiente'
+    case 'Ofertada': return 'Enviada oferta'
+    case 'Tramitando': return 'Iniciada contratación'
+    case 'Contratando': return 'En trámite contratación'
+    case 'Cancelado': return 'Cancelado'
+    case 'Contratado': return 'Contratado'
     default:
       return status || 'Sin estado'
   }

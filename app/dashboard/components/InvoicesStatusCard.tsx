@@ -6,9 +6,10 @@ const numberFormatter = new Intl.NumberFormat('es-ES')
 // NOTE: Number formatting aligned with existing dashboard locale using Intl.NumberFormat('es-ES').
 
 const SEGMENT_COLORS: Record<string, string> = {
-  pending: 'var(--chart-pending-color)',
-  processed: 'var(--chart-processed-color)',
-  success: 'var(--chart-success-color)',
+  pendiente: 'var(--chart-pending-color)',
+  en_proceso: 'var(--chart-processed-color)',
+  contratado: 'var(--chart-success-color)',
+  cancelado: 'var(--chart-error-color)',
 }
 
 type InvoicesStatusCardProps = {

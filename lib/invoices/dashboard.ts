@@ -85,7 +85,7 @@ export type DashboardData = {
   invoices: DashboardTableRow[]
 }
 
-type StatusCategoryKey = 'pending' | 'processed' | 'success'
+type StatusCategoryKey = 'pendiente' | 'en_proceso' | 'contratado' | 'cancelado'
 
 type AggregatedStatusCounts = Record<StatusCategoryKey, number>
 
@@ -109,9 +109,10 @@ const STATUS_CATEGORIES: Array<{
   label: string
   matches: string[]
 }> = [
-  { key: 'pending', label: 'Pending', matches: ['pending', 'queued', 'reprocess', 'error'] },
-  { key: 'processed', label: 'Processed', matches: ['processed'] },
-  { key: 'success', label: 'Success', matches: ['done', 'success'] },
+  { key: 'pendiente', label: 'Pendientes', matches: ['Pendiente'] },
+  { key: 'en_proceso', label: 'En Proceso', matches: ['Ofertada', 'Tramitando', 'Contratando'] },
+  { key: 'contratado', label: 'Contratados', matches: ['Contratado'] },
+  { key: 'cancelado', label: 'Cancelados', matches: ['Cancelado'] },
 ]
 
 type InvoiceQueryResult = Database['core']['Tables']['invoices']['Row'] & {
@@ -142,7 +143,7 @@ export async function fetchDashboardData(
 
   const [{ data: aggregates, error: aggregatesError }, { data: invoiceRows, error: invoicesError }] =
     await Promise.all([
-      admin.rpc('dashboard_invoice_aggregates', {
+      admin.schema('core').rpc('dashboard_invoice_aggregates', {
         p_from: sanitized.from,
         p_to: sanitized.to,
         p_query: sanitized.q ?? undefined,
@@ -308,9 +309,10 @@ function normalizeAggregates(raw: unknown): NormalizedAggregates {
     currentTotal: Number(payload.currentTotal ?? 0),
     previousTotal: Number(payload.previousTotal ?? 0),
     statusCounts: {
-      pending: Number(statusCountsRaw.pending ?? 0),
-      processed: Number(statusCountsRaw.processed ?? 0),
-      success: Number(statusCountsRaw.success ?? 0),
+      pendiente: Number(statusCountsRaw.pendiente ?? 0),
+      en_proceso: Number(statusCountsRaw.en_proceso ?? 0),
+      contratado: Number(statusCountsRaw.contratado ?? 0),
+      cancelado: Number(statusCountsRaw.cancelado ?? 0),
     },
     monthlyBuckets: bucketsRaw.map((bucket) => ({
       monthAnchor: bucket?.monthAnchor ?? '',
@@ -447,7 +449,7 @@ function bucketKey(anchor: string): string {
 }
 
 function buildStatusBreakdown(counts: AggregatedStatusCounts): StatusBreakdown {
-  const total = counts.pending + counts.processed + counts.success
+  const total = counts.pendiente + counts.en_proceso + counts.contratado + counts.cancelado
 
   return STATUS_CATEGORIES.map(({ key, label }) => ({
     key,

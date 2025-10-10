@@ -26,7 +26,6 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
   const customer = invoice.customer ?? { id: null, name: null, email: null, mobile_phone: null }
 
   const downloadHref = `/api/invoices/${params.id}/download`
-  const reprocessHref = `/api/invoices/${params.id}/reprocess`
 
   const topbar = (
     <>
@@ -50,9 +49,6 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
         </div>
         <div className="page-header__actions">
           <a className="btn btn-secondary" href={downloadHref}>Descargar PDF</a>
-          <form action={reprocessHref} method="post">
-            <button className="btn btn-primary" type="submit">Reprocesar</button>
-          </form>
         </div>
       </section>
 
@@ -73,6 +69,37 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
         </dl>
       </section>
 
+      <section className="card" aria-labelledby="status-actions">
+        <h2 id="status-actions">Cambiar Estado</h2>
+        <p className="muted">Estado actual: <span className={`badge badge-${badge(invoice.status)}`}>{invoice.status}</span></p>
+        <div className="status-buttons">
+          <form action={`/api/invoices/${params.id}/status`} method="post">
+            <input type="hidden" name="new_status" value="Pendiente" />
+            <button className="btn btn-outline" type="submit">Pendiente</button>
+          </form>
+          <form action={`/api/invoices/${params.id}/status`} method="post">
+            <input type="hidden" name="new_status" value="Ofertada" />
+            <button className="btn btn-outline" type="submit">Ofertada</button>
+          </form>
+          <form action={`/api/invoices/${params.id}/status`} method="post">
+            <input type="hidden" name="new_status" value="Tramitando" />
+            <button className="btn btn-outline" type="submit">Tramitando</button>
+          </form>
+          <form action={`/api/invoices/${params.id}/status`} method="post">
+            <input type="hidden" name="new_status" value="Contratando" />
+            <button className="btn btn-outline" type="submit">Contratando</button>
+          </form>
+          <form action={`/api/invoices/${params.id}/status`} method="post">
+            <input type="hidden" name="new_status" value="Cancelado" />
+            <button className="btn btn-outline btn-danger" type="submit">Cancelado</button>
+          </form>
+          <form action={`/api/invoices/${params.id}/status`} method="post">
+            <input type="hidden" name="new_status" value="Contratado" />
+            <button className="btn btn-outline btn-success" type="submit">Contratado</button>
+          </form>
+        </div>
+      </section>
+
       <section className="card" aria-labelledby="raw">
         <h2 id="raw">extracted_raw</h2>
         <JsonViewer value={invoice.extracted_raw ?? null} />
@@ -86,12 +113,13 @@ function money(n?: number | null) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(n)
 }
 function badge(status?: string | null) {
-  switch ((status || '').toLowerCase()) {
-    case 'queued':
-    case 'pending': return 'warn'
-    case 'processed':
-    case 'done': return 'ok'
-    case 'error': return 'error'
+  switch (status) {
+    case 'Pendiente': return 'neutral'
+    case 'Ofertada': return 'warn'
+    case 'Tramitando': return 'warn'
+    case 'Contratando': return 'warn'
+    case 'Cancelado': return 'error'
+    case 'Contratado': return 'ok'
     default: return 'neutral'
   }
 }

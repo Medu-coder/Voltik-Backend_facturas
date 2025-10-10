@@ -6,6 +6,7 @@
   --chart-pending-color: hsl(var(--voltik-warning));
   --chart-processed-color: hsl(var(--voltik-info));
   --chart-success-color: hsl(var(--voltik-success));
+  --chart-error-color: hsl(0 84% 60%); /* Rojo más vibrante */
   --chart-muted-color: hsl(var(--muted-foreground) / 0.15);
 }
 
@@ -200,6 +201,27 @@
 
 .chart-legend__swatch--success {
   background: var(--chart-success-color);
+}
+
+.chart-legend__swatch--error {
+  background: var(--chart-error-color);
+}
+
+/* Nuevos estados de facturas */
+.chart-legend__swatch--pendiente {
+  background: var(--chart-pending-color);
+}
+
+.chart-legend__swatch--en_proceso {
+  background: var(--chart-processed-color);
+}
+
+.chart-legend__swatch--contratado {
+  background: var(--chart-success-color);
+}
+
+.chart-legend__swatch--cancelado {
+  background: var(--chart-error-color);
 }
 
 .chart-donut-layout {
