@@ -41,7 +41,7 @@ Una vez resuelto el cliente:
    - `id`: `invoiceId`.
    - `customer_id`: FK al cliente.
    - `storage_object_path`: ruta del PDF.
-   - `status`: `'pending'` (a la espera de procesamiento posterior).
+   - `status`: `'Pendiente'` (a la espera de procesamiento posterior).
 5. En caso de error al insertar, elimina el PDF recién subido para evitar basura en Storage.
 
 ### Relación de tablas
@@ -83,7 +83,7 @@ ingestInvoiceSubmission
         |
         +--> persistInvoicePdf --(sube PDF)--> Supabase Storage
         |
-        +--> core.invoices.insert(status='pending')
+        +--> core.invoices.insert(status='Pendiente')
         |
         +--> logAudit eventos success/error
         |

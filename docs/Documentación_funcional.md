@@ -28,7 +28,7 @@ Admin -> (/upload) -> Formulario client
   -> POST /api/upload (PDF, nombre, email)
       -> Validaciones (tamano, MIME, campos)
       -> ensureCustomer / persistInvoicePdf
-      -> core.invoices.status = 'pending'
+      -> core.invoices.status = 'Pendiente'
       -> logAudit invoice_upload_*
   <- Toast "Encolado para procesamiento"
   <- Redireccion /dashboard
@@ -89,9 +89,9 @@ Formulario web -> POST /api/public/intake (FormData)
 ## Entradas y Salidas Clave
 | Flujo | Entradas requeridas | Salidas / efectos |
 | --- | --- | --- |
-| `/api/upload` | FormData `file` (PDF), `customer_name`, `customer_email`, `customer_phone` (opcional); sesion admin o `X-INTERNAL-KEY` | Insercion en `core.invoices` (`status='pending'`), objeto en Storage con metadata, evento `invoice_upload_success`, toast en UI. |
-| `/api/email/inbound` | Headers `X-INBOUND-SECRET`, FormData `from`, opcional `envelope`, adjunto PDF | Crea/actualiza cliente, factura `pending`, eventos `email_inbound_*`, respuesta `{ ok: true, id }`. |
-| `/api/public/intake` | Origin permitido, captcha valido, FormData `first_name`, `last_name`, `email`, `phone` (o `mobile_phone`, opcional), `privacy_ack`, `file`, `captcha_token` | Factura `pending`, evento `public_intake_success`, respuesta `{ ok: true, invoiceId }`. |
+| `/api/upload` | FormData `file` (PDF), `customer_name`, `customer_email`, `customer_phone` (opcional); sesion admin o `X-INTERNAL-KEY` | Insercion en `core.invoices` (`status='Pendiente'`), objeto en Storage con metadata, evento `invoice_upload_success`, toast en UI. |
+| `/api/email/inbound` | Headers `X-INBOUND-SECRET`, FormData `from`, opcional `envelope`, adjunto PDF | Crea/actualiza cliente, factura `Pendiente`, eventos `email_inbound_*`, respuesta `{ ok: true, id }`. |
+| `/api/public/intake` | Origin permitido, captcha valido, FormData `first_name`, `last_name`, `email`, `phone` (o `mobile_phone`, opcional), `privacy_ack`, `file`, `captcha_token` | Factura `Pendiente`, evento `public_intake_success`, respuesta `{ ok: true, invoiceId }`. |
 | `/api/invoices/[id]/download` | Sesion admin | Redireccion a URL firmada Supabase (expira segun TTL). |
 | `/api/invoices/[id]/reprocess` | Sesion admin, POST vacio | Actualiza `status` a `reprocess`, redirecciona a `/invoices/{id}`. |
 | `/api/export/csv` | Bearer token admin, query `from`, `to` | CSV con columnas `id,customer_id,status,issue_date,billing_start_date,billing_end_date,total_amount_eur,created_at`. |

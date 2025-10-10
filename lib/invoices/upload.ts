@@ -68,7 +68,7 @@ export async function persistInvoicePdf(params: InvoicePersistParams): Promise<I
     id: invoiceId,
     customer_id: params.customerId,
     storage_object_path: path,
-    status: 'pending',
+    status: 'Pendiente',
   }
 
   const { error: insertError } = await params.admin.from('invoices').insert(insertPayload)

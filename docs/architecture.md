@@ -42,7 +42,7 @@ flowchart LR
 ### Subida manual de facturas
 1. `UploadForm` (client) envía un `FormData` a `/api/upload`.
 2. La route valida sesión admin o `X-INTERNAL-KEY`, normaliza cliente con `ensureCustomer` y delega en `ingestInvoiceSubmission` para subir el PDF con metadata obligatoria.
-3. Inserta `core.invoices` (`status='pending'`) y responde con el `invoiceId`.
+3. Inserta `core.invoices` (`status='Pendiente'`) y responde con el `invoiceId`.
 
 ### Email entrante (`/api/email/inbound`)
 1. Valida `X-INBOUND-SECRET` y extrae remitente/adjuntos.
@@ -63,7 +63,7 @@ flowchart LR
 | Tabla / función | Propósito | Campos clave / notas |
 | --- | --- | --- |
 | `core.customers` | Clientes vinculados a `auth.users`. | `id uuid`, `user_id uuid` (owner), `name`, `email`, `mobile_phone`, índice único `customers_email_name_idx`, trigger `trg_customers_set_updated_at`. |
-| `core.invoices` | Facturas y metadatos. | FK `customer_id`, `storage_object_path`, fechas de facturación, `status` (`pending`, `processed`, `error`, `reprocess`, `done`), índices por `created_at`, `(status, created_at desc)` y `(customer_id, issue_date, status)`, trigger `trg_invoices_set_updated_at`. |
+| `core.invoices` | Facturas y metadatos. | FK `customer_id`, `storage_object_path`, fechas de facturación, `status` (`Pendiente`, `Ofertada`, `Tramitando`, `Contratando`, `Cancelado`, `Contratado`), índices por `created_at`, `(status, created_at desc)` y `(customer_id, issue_date, status)`, trigger `trg_invoices_set_updated_at`. |
 | `core.audit_logs` | Registro de eventos de auditoría. | `event`, `entity`, `level`, `meta jsonb`, secuencia `core.audit_logs_id_seq`. |
 | `core.dashboard_invoice_aggregates(p_from, p_to, p_query)` | RPC para dashboard (JSON). | Devuelve totales, buckets mensuales, status breakdown. Ejecuta con `security definer` y requiere índices previos. |
 | `core.get_customers_last_invoice(p_customer_ids uuid[])` | RPC auxiliar. | Devuelve `customer_id` + `last_invoice_at` (`max(created_at)`) para poblar `/customers` sin escanear todas las facturas. |
