@@ -5,6 +5,14 @@ const RANGE_SUMMARY_FORMATTER = new Intl.DateTimeFormat('es-ES', {
   year: 'numeric',
   timeZone: 'UTC',
 })
+const DATETIME_FORMATTER = new Intl.DateTimeFormat('es-ES', {
+  day: '2-digit',
+  month: '2-digit', 
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: 'UTC'
+})
 
 export function formatDate(value?: string | Date | null): string {
   const date = coerceDate(value)
@@ -12,6 +20,22 @@ export function formatDate(value?: string | Date | null): string {
     return typeof value === 'string' ? value : '—'
   }
   return DATE_FORMATTER.format(date)
+}
+
+export function formatDateTime(value?: string | Date | null): string {
+  if (!value) return '—'
+  
+  let date: Date
+  if (value instanceof Date) {
+    date = value
+  } else {
+    // Para timestamps ISO completos, parsear directamente
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return '—'
+    date = parsed
+  }
+  
+  return DATETIME_FORMATTER.format(date)
 }
 
 export function formatDateRange(start?: string | Date | null, end?: string | Date | null): string {

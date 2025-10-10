@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import JsonViewer from '@/components/JsonViewer'
-import { formatDate } from '@/lib/date'
+import { formatDate, formatDateTime } from '@/lib/date'
 import AppShell from '@/components/AppShell'
 import type { Database } from '@/lib/types/supabase'
 
@@ -58,6 +58,7 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
           <div><dt>Cliente</dt><dd>{customer.name || customer.email || invoice.customer_id}</dd></div>
           <div><dt>Email</dt><dd>{customer.email || '—'}</dd></div>
           <div><dt>Teléfono</dt><dd>{customer.mobile_phone || '—'}</dd></div>
+          <div><dt>Fecha creación</dt><dd>{formatDateTime(invoice.created_at)}</dd></div>
           <div><dt>Periodo</dt><dd>{formatDate(invoice.billing_start_date)} — {formatDate(invoice.billing_end_date)}</dd></div>
           <div><dt>Fecha emisión</dt><dd>{formatDate(invoice.issue_date)}</dd></div>
           <div><dt>Estado</dt><dd><span className={`badge badge-${badge(invoice.status)}`}>{invoice.status}</span></dd></div>
