@@ -1,5 +1,7 @@
 # Voltik Invoices - Documentacion Tecnica
 
+**Última actualización**: 2025-10-11 (Supabase CLI v2.48.3)
+
 ## Vision General de la Arquitectura
 ```
 Browser (admin y automatizaciones)
@@ -7,18 +9,19 @@ Browser (admin y automatizaciones)
    v
 Next.js App Router (app/*)
    |-- Server Components (SSR/SSG)
-   |-- Client Components (UploadForm, Toaster, JsonViewer)
+   |-- Client Components (UploadForm, Toaster, JsonViewer, OffersList)
    |-- API Routes (app/api/*)
            |
            v
      Supabase Project
        |-- Auth (magic link, JWT claims)
-       |-- Postgres (schema core)
-       |-- Storage bucket "invoices"
+       |-- Postgres (schema core: 4 tablas, 3 funciones)
+       |-- Storage buckets ("invoices" + "offers")
 ```
 - Autenticacion via Supabase magic link; las paginas server usan `requireAdmin()` para aplicar guardas.
 - Servicios internos (webhooks, intake publico, scripts) reutilizan las mismas utilidades (`ingestInvoiceSubmission`, `ensureCustomer`).
 - Auditoria centralizada en `core.audit_logs` mediante `logAudit` (service role).
+- Sistema de ofertas completamente integrado con gestión de PDFs y auditoría.
 
 ## Tecnologias y Dependencias
 | Componente | Version | Notas |
@@ -30,7 +33,7 @@ Next.js App Router (app/*)
 | Auth JWT | `jose` ^5.5.0 | validacion de Bearer tokens en API privadas |
 | Estilos | Tailwind base via `styles.css` | tokens custom de Voltik, no se usa `tailwind.config.js` |
 | Tooling | TypeScript ^5.4.5, ESLint 8.57.1 | `npm run typecheck` / `npm run lint` |
-| Supabase CLI | ^2.40.7 (devDependency) | generar tipos y ejecutar migraciones |
+| Supabase CLI | v2.48.3 (Homebrew) | generar tipos y ejecutar migraciones |
 
 ## Configuracion del Proyecto
 ### Scripts npm
@@ -54,7 +57,8 @@ Next.js App Router (app/*)
 | `ADMIN_USER_ID` | UUID usado como actor al crear clientes desde tareas automatizadas |
 | `INTERNAL_API_SECRET` | clave compartida para rutas internas (`/api/upload`, `/api/debug/session`) |
 | `INBOUND_EMAIL_SECRET` | firma para `/api/email/inbound` |
-| `STORAGE_INVOICES_BUCKET` | nombre del bucket (default `invoices`) |
+| `STORAGE_INVOICES_BUCKET` | nombre del bucket de facturas (default `invoices`) |
+| `STORAGE_OFFERS_BUCKET` | nombre del bucket de ofertas (default `offers`) |
 | `STORAGE_SIGNED_URL_TTL_SECS` | TTL en segundos para URLs firmadas (default 120) |
 | `PUBLIC_INTAKE_ALLOWED_ORIGINS` | lista de origenes permitidos para `/api/public/intake` (separados por comas) |
 | `PUBLIC_INTAKE_CAPTCHA_SECRET` | secreto reCAPTCHA v3 para verificación de tokens |
@@ -129,6 +133,10 @@ Next.js App Router (app/*)
 | `/api/invoices/[id]/reprocess` | POST | Sesion admin | Cambia `status` a `reprocess` y redirige a detalle |
 | `/api/files/signed-url` | GET | Bearer admin (JWT) | Genera signed URL para `path` dado, TTL 10-300s |
 | `/api/export/csv` | GET | Bearer admin (JWT) | Export CSV filtrado (`from`, `to`, campo `created_at`) para integraciones |
+| `/api/offers/[invoiceId]` | GET | Sesion admin | Lista ofertas de una factura específica |
+| `/api/offers/[invoiceId]` | POST | Sesion admin | Sube nueva oferta (PDF + nombre comercializadora) |
+| `/api/offers/[invoiceId]/[offerId]` | DELETE | Sesion admin | Elimina oferta (DB + Storage) |
+| `/api/offers/[invoiceId]/[offerId]/download` | GET | Sesion admin | Genera signed URL para descargar PDF de oferta |
 
 ### Endpoints de integracion
 | Ruta | Metodo | Auth | Proposito |
@@ -160,7 +168,9 @@ Next.js App Router (app/*)
 | `lib/invoices/intake.ts` | `ingestInvoiceSubmission`: orquesta `ensureCustomer`, `persistInvoicePdf`, registra auditoria personalizada (eventos configurables). |
 | `lib/invoices/dashboard.ts` | `fetchDashboardData`: ejecuta RPC `dashboard_invoice_aggregates`, arma comparativas mensuales, series diarias, breakdown de estados, tabla (max 20). Incluye utilidades para normalizar filtros y construir comparaciones año vs año. |
 | `lib/export/invoicesCsv.ts` | `fetchInvoiceRows`, `rowsToCsv`, `buildInvoicesCsv` con filtros por rango (`created_at` o `billing_period`). |
-| `lib/storage.ts` | `buildInvoiceStoragePath`: genera rutas `segmento_email/AAAA/MM/DD/invoiceId.pdf`, sanitiza email. |
+| `lib/storage.ts` | `buildInvoiceStoragePath`: genera rutas `segmento_email/AAAA/MM/DD/invoiceId.pdf`, sanitiza email. `buildOfferStoragePath`: genera rutas `invoice_id/offer_id.pdf` para ofertas. |
+| `lib/offers/upload.ts` | `persistOfferPdf`: valida PDF, sube a Storage con metadata, inserta en `core.offers`, rollback si falla. |
+| `lib/offers/fetch.ts` | `fetchOffersByInvoiceId`, `fetchOfferById`, `deleteOffer`, `fetchOffersCountByInvoiceId`: operaciones CRUD para ofertas. |
 
 ### Seguridad y auditoria
 | Archivo | Resumen |
@@ -182,20 +192,21 @@ Next.js App Router (app/*)
 | --- | --- | --- |
 | `core.customers` | Clientes vinculados a `auth.users`. Columnas: `id`, `user_id`, `name`, `email`, `mobile_phone`, bandera `is_active`, timestamps. |
 | `core.invoices` | Facturas: `customer_id`, `storage_object_path`, campos energeticos (tarifa, precios), periodo de facturacion, montos, `status`, `extracted_raw` JSON. |
-| `core.audit_logs` | Auditoria: `event`, `entity`, `level`, `meta` JSON. |
+| `core.offers` | Ofertas asociadas a facturas: `invoice_id` (FK), `provider_name`, `storage_object_path`, timestamps. Relación 1:N con `core.invoices`. |
+| `core.audit_logs` | Auditoria: `event`, `entity`, `level`, `meta` JSON. Soporta entidad `offer` para eventos de ofertas. |
 | `core.dashboard_invoice_aggregates(p_from, p_to, p_query)` | RPC SQL (security definer) que devuelve JSON con totales, buckets mensuales, status breakdown. Usa indices `idx_invoices_created_at`, `idx_invoices_status_created_at`. |
 | `core.get_customers_last_invoice(p_customer_ids)` | RPC que calcula ultima factura (`max(created_at)`) por cliente. |
 | `core.is_admin()` | Helper usado por RLS para comprobar claims `admin` o `service_role`. |
 
 ### RLS y politicas
 - `core` tablas: policies `*_admin_*` permiten CRUD solo a `core.is_admin()`; service role mantiene acceso completo.
-- `storage.objects`: policies `invoices_*` limitan operaciones al bucket `invoices` y exigen `core.is_admin()` o rol `service_role`.
+- `storage.objects`: policies `invoices_*` limitan operaciones al bucket `invoices` y exigen `core.is_admin()` o rol `service_role`. Policies `offers_*` para bucket `offers`.
 - Migraciones en `supabase/migrations/*.sql` crean indices y funciones RPC necesarias.
 
 ### Storage y archivos
-- Bucket privado (default `invoices`).
-- Metadata obligatoria por politica: `customer_id`, `actor_user_id` (cargada en `persistInvoicePdf`).
-- Ruta generada por `buildInvoiceStoragePath` depende de fecha de emision (`issuedAt`): `email_sanitizado/YYYY/MM/DD/invoiceId.pdf`.
+- Bucket privado para facturas (default `invoices`) y bucket separado para ofertas (default `offers`).
+- Metadata obligatoria por politica: `customer_id`, `actor_user_id` (cargada en `persistInvoicePdf`). Para ofertas: `invoice_id`, `offer_id`, `actor_user_id`, `provider_name`.
+- Rutas generadas por `buildInvoiceStoragePath` (facturas): `email_sanitizado/YYYY/MM/DD/invoiceId.pdf`. Por `buildOfferStoragePath` (ofertas): `invoice_id/offer_id.pdf`.
 
 ### Artefactos complementarios
 | Archivo | Proposito |
@@ -212,7 +223,7 @@ Next.js App Router (app/*)
 
 ## Auditoria y Logging
 - `lib/logger.ts` registra cualquier paso relevante en `core.audit_logs` (evento, entidad, nivel, metadata).
-- Principales eventos: `invoice_upload_*`, `invoice_intake_*`, `public_intake_*`, `email_inbound_*`, `export_csv_*`, `signed_url_*`.
+- Principales eventos: `invoice_upload_*`, `invoice_intake_*`, `public_intake_*`, `email_inbound_*`, `export_csv_*`, `signed_url_*`, `offer_upload_*`, `offer_deleted`, `offer_download_*`.
 - Fallos en auditoria solo se registran en consola (`console.warn`) para evitar cortar la request.
 
 ## Buenas Practicas y Convenciones

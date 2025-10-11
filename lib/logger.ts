@@ -7,7 +7,7 @@ export type LogLevel = 'info' | 'warn' | 'error'
 
 export type LogAuditParams = {
   event: string
-  entity: 'invoice' | 'customer' | 'system' | 'storage'
+  entity: 'invoice' | 'customer' | 'system' | 'storage' | 'offer'
   entity_id?: string | null
   customer_id?: string | null
   actor_user_id?: string | null

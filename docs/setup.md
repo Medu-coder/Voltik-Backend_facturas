@@ -32,7 +32,8 @@ Crea un archivo `.env.local` en la raíz del proyecto. **Nunca** subas este arch
 | `ADMIN_USER_ID` | Servidor | Sí | UUID usado para crear clientes automáticamente cuando no hay sesión. |
 | `INTERNAL_API_SECRET` | Servidor | Sí | Clave compartida para integraciones internas (`/api/upload`, `/api/debug/session`). |
 | `INBOUND_EMAIL_SECRET` | Servidor | Sí | Firma las peticiones del webhook de email entrante. |
-| `STORAGE_INVOICES_BUCKET` | Servidor | No (default `invoices`) | Nombre del bucket privado en Supabase Storage. |
+| `STORAGE_INVOICES_BUCKET` | Servidor | No (default `invoices`) | Nombre del bucket privado en Supabase Storage para facturas. |
+| `STORAGE_OFFERS_BUCKET` | Servidor | No (default `offers`) | Nombre del bucket privado en Supabase Storage para ofertas. |
 | `STORAGE_SIGNED_URL_TTL_SECS` | Servidor | No (default `120`) | Tiempo de vida (segundos) de las URLs firmadas para descargas. |
 | `PUBLIC_INTAKE_ALLOWED_ORIGINS` | Servidor | Recomendado | Lista separada por comas de orígenes permitidos para `/api/public/intake`. Dejar vacío en desarrollo. |
 | `PUBLIC_INTAKE_SHARED_SECRET` | Servidor | Opcional | Token compartido para validar formularios públicos (si no se usa captcha). |
@@ -45,13 +46,21 @@ Crea un archivo `.env.local` en la raíz del proyecto. **Nunca** subas este arch
 > **Consejo**: usa un gestor de secretos (Supabase/Vercel) para entornos productivos en lugar de variables planas.
 
 ## 4. Configuración de Supabase
-1. Crea el bucket privado `invoices` desde la consola de Supabase (Storage > New bucket > Private).
-2. Ejecuta las migraciones SQL incluidas:
+
+### 4.1 Buckets de Storage
+1. **Bucket de facturas**: Crea el bucket privado `invoices` desde la consola de Supabase (Storage > New bucket > Private).
+2. **Bucket de ofertas**: Crea el bucket privado `offers` con las siguientes configuraciones:
+   - Tipo: Privado
+   - Límite de archivo: 10MB
+   - Tipos permitidos: application/pdf
+
+### 4.2 Base de datos
+Ejecuta las migraciones SQL incluidas:
    - sube los archivos `supabase/migrations/*.sql` usando Supabase CLI o la consola SQL (`Run SQL`).
    - verifica que la función `core.dashboard_invoice_aggregates` y los índices existan (`
 select proname from pg_proc where proname = 'dashboard_invoice_aggregates';`).
 3. Importa el esquema completo si aún no existe (`supabase/schema/structure.sql`). Utiliza la consola `psql` o Supabase CLI (`supabase db push`) según tus necesidades.
-4. Comprueba Policies en `core.*` y `storage.objects` para el bucket `invoices`.
+4. Comprueba Policies en `core.*` y `storage.objects` para los buckets `invoices` y `offers`.
 
 ## 5. Generar tipos TypeScript de Supabase
 Para que TypeScript controle el contrato con la base de datos, genera los tipos del proyecto y guárdalos en `lib/types/supabase.ts`.
@@ -94,6 +103,8 @@ curl -X POST http://localhost:3000/api/email/inbound \
 ## 9. Checklist previo a producción
 - [ ] Todos los secretos configurados y rotados tras pruebas locales.
 - [ ] Bucket `invoices` validado como privado y con metadata (`customer_id`, `actor_user_id`) adjunta en las subidas.
+- [ ] Bucket `offers` validado como privado, límite 10MB, solo PDFs, con metadata (`invoice_id`, `offer_id`, `actor_user_id`, `provider_name`) adjunta en las subidas.
+- [ ] Sistema de ofertas probado (subir, listar, descargar, eliminar).
 - [ ] `npm run build` y `npm run lint` ejecutados sin errores.
 - [ ] Auditoría de logs (`core.audit_logs`) confirmada.
 - [ ] Webhook de email probado en entorno staging.

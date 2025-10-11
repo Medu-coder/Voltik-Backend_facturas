@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       [_ in never]: never
@@ -42,7 +67,7 @@ export type Database = {
           event: string
           id: number
           level: string
-          meta: Json | null
+          meta: Json
         }
         Insert: {
           actor_role?: string | null
@@ -54,7 +79,7 @@ export type Database = {
           event: string
           id?: number
           level?: string
-          meta?: Json | null
+          meta?: Json
         }
         Update: {
           actor_role?: string | null
@@ -66,17 +91,9 @@ export type Database = {
           event?: string
           id?: number
           level?: string
-          meta?: Json | null
+          meta?: Json
         }
-        Relationships: [
-          {
-            foreignKeyName: "audit_logs_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       customers: {
         Row: {
@@ -117,9 +134,8 @@ export type Database = {
           billing_start_date: string | null
           contracted_power_by_period: number | null
           created_at: string
-          cups: string | null
           currency: string
-          customer_id: string
+          cups: string | null
           energy_price_eur_per_kwh: number | null
           extracted_raw: Json | null
           id: string
@@ -131,15 +147,15 @@ export type Database = {
           tariff: string | null
           total_amount_eur: number | null
           updated_at: string
+          customer_id: string
         }
         Insert: {
           billing_end_date?: string | null
           billing_start_date?: string | null
           contracted_power_by_period?: number | null
           created_at?: string
-          cups?: string | null
           currency?: string
-          customer_id: string
+          cups?: string | null
           energy_price_eur_per_kwh?: number | null
           extracted_raw?: Json | null
           id?: string
@@ -151,15 +167,15 @@ export type Database = {
           tariff?: string | null
           total_amount_eur?: number | null
           updated_at?: string
+          customer_id: string
         }
         Update: {
           billing_end_date?: string | null
           billing_start_date?: string | null
           contracted_power_by_period?: number | null
           created_at?: string
-          cups?: string | null
           currency?: string
-          customer_id?: string
+          cups?: string | null
           energy_price_eur_per_kwh?: number | null
           extracted_raw?: Json | null
           id?: string
@@ -171,6 +187,7 @@ export type Database = {
           tariff?: string | null
           total_amount_eur?: number | null
           updated_at?: string
+          customer_id?: string
         }
         Relationships: [
           {
@@ -179,7 +196,42 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customers"
             referencedColumns: ["id"]
-          },
+          }
+        ]
+      }
+      offers: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_id: string
+          provider_name: string
+          storage_object_path: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_id: string
+          provider_name: string
+          storage_object_path: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          provider_name?: string
+          storage_object_path?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          }
         ]
       }
     }
@@ -188,14 +240,20 @@ export type Database = {
     }
     Functions: {
       dashboard_invoice_aggregates: {
-        Args: { p_from: string; p_query?: string; p_to: string }
+        Args: {
+          p_from: string
+          p_query?: string
+          p_to: string
+        }
         Returns: Json
       }
       get_customers_last_invoice: {
-        Args: { p_customer_ids: string[] }
+        Args: {
+          p_customer_ids: string[]
+        }
         Returns: {
           customer_id: string
-          last_invoice_at: string
+          last_invoice_at: string | null
         }[]
       }
       is_admin: {
@@ -210,10 +268,100 @@ export type Database = {
       [_ in never]: never
     }
   }
-  storage: {
-    Tables: Record<string, never>
-    Views: Record<string, never>
-    Functions: Record<string, never>
-    Enums: Record<string, never>
-  }
 }
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  PublicEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends PublicEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+    ? keyof DatabaseWithoutInternals[PublicEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = PublicEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : PublicEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][PublicEnumNameOrOptions]
+    : never

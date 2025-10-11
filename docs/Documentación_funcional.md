@@ -20,6 +20,7 @@ Voltik Invoices centraliza la recepcion de facturas PDF de clientes electricos (
 6. **Formulario publico**: recoge datos del cliente final (nombre, email, PDF) con controles anti abuso.
 7. **Descarga segura**: admin genera enlace firmado para entregar PDF a interesados.
 8. **Reprocesar**: admin marca una factura para reprocesamiento externo (`status=reprocess`).
+9. **Gestionar ofertas**: admin sube, consulta, descarga y elimina ofertas asociadas a cada factura.
 
 ## Flujos Funcionales
 ### 1. Subida manual (admin)
@@ -65,6 +66,20 @@ Formulario web -> POST /api/public/intake (FormData)
   - Grafico mensual comparando mismo mes del anio anterior.
   - Tabla de 20 ultimas facturas con enlace a detalle.
 
+### 5. Gestion de ofertas
+```
+Admin -> (/invoices/{id}) -> "Ver Ofertas" o card "Ofertas"
+  -> (/invoices/{id}/offers)
+      -> Lista ofertas existentes (tabla con comercializadora, fecha, acciones)
+      -> Formulario subir nueva oferta (PDF + nombre comercializadora)
+      -> Botones: Descargar, Eliminar
+  -> POST /api/offers/{invoiceId} (PDF + provider_name)
+      -> persistOfferPdf (validacion, upload Storage, insert DB)
+      -> logAudit offer_upload_success
+  -> GET /api/offers/{invoiceId}/download (genera signed URL)
+  -> DELETE /api/offers/{invoiceId}/{offerId} (elimina DB + Storage)
+```
+
 ## Vistas y Comportamiento Esperado
 | Vista | Objetivo | Comportamiento |
 | --- | --- | --- |
@@ -75,6 +90,7 @@ Formulario web -> POST /api/public/intake (FormData)
 | Clientes (listado) | Gestion de cartera | Buscador, telefono y email visibles, conteo de facturas, fecha de ultima factura (RPC), enlaces a detalle. |
 | Cliente (detalle) | Seguimiento | Datos basicos (nombre/email/telefono) + tabla de facturas filtrada por cliente. |
 | Upload | Captura manual | Valida nombre, email, PDF y teléfono opcional; feedback inmediato via toaster; redirecciona a dashboard tras exito. |
+| Ofertas (listado) | Gestion de ofertas | Lista ofertas de factura, formulario subida, acciones descargar/eliminar. Navegacion desde detalle de factura. |
 
 ## Estados de Factura
 | Valor almacenado | Etiqueta UI | Significado funcional |

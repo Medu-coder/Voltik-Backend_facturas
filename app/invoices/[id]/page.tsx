@@ -5,6 +5,7 @@ import Link from 'next/link'
 import JsonViewer from '@/components/JsonViewer'
 import { formatDate, formatDateTime } from '@/lib/date'
 import AppShell from '@/components/AppShell'
+import InvoiceOffersCard from '@/components/InvoiceOffersCard'
 import type { Database } from '@/lib/types/supabase'
 
 type InvoiceDetailRow = Database['core']['Tables']['invoices']['Row'] & {
@@ -48,6 +49,9 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
           <p className="muted">Cliente: {customer.name || customer.email || invoice.customer_id}</p>
         </div>
         <div className="page-header__actions">
+          <Link className="btn btn-outline" href={`/invoices/${params.id}/offers`}>
+            Ver Ofertas
+          </Link>
           <a className="btn btn-secondary" href={downloadHref}>Descargar PDF</a>
         </div>
       </section>
@@ -100,6 +104,8 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
           </form>
         </div>
       </section>
+
+      <InvoiceOffersCard invoiceId={params.id} />
 
       <section className="card" aria-labelledby="raw">
         <h2 id="raw">extracted_raw</h2>

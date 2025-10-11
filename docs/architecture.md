@@ -3,6 +3,8 @@
 ## 1. Visión general
 La aplicación es una SPA administrada por Next.js (App Router) con renderizado server-first. Supabase aporta autenticación (Magic Link), base de datos Postgres con RLS y Storage privado para PDFs.
 
+**Última actualización**: 2025-10-11 (Supabase CLI v2.48.3)
+
 ```mermaid
 flowchart LR
     subgraph Client
@@ -17,7 +19,7 @@ flowchart LR
     subgraph Supabase
       Auth["Auth"]
       DB["Postgres\n(schema core)"]
-      Storage["Storage bucket\n'invoices'"]
+      Storage["Storage buckets\n'invoices' + 'offers'"]
     end
     SendGrid["Webhook email inbound"]
 
@@ -60,19 +62,55 @@ flowchart LR
 3. Componentes `MonthlyInvoicesCard` e `InvoicesStatusCard` pintan SVG accesibles y tabla `InvoiceTable` reutilizada.
 
 ## 3. Modelo de datos (schema `core`)
-| Tabla / función | Propósito | Campos clave / notas |
-| --- | --- | --- |
-| `core.customers` | Clientes vinculados a `auth.users`. | `id uuid`, `user_id uuid` (owner), `name`, `email`, `mobile_phone`, índice único `customers_email_name_idx`, trigger `trg_customers_set_updated_at`. |
-| `core.invoices` | Facturas y metadatos. | FK `customer_id`, `storage_object_path`, fechas de facturación, `status` (`Pendiente`, `Ofertada`, `Tramitando`, `Contratando`, `Cancelado`, `Contratado`), índices por `created_at`, `(status, created_at desc)` y `(customer_id, issue_date, status)`, trigger `trg_invoices_set_updated_at`. |
-| `core.audit_logs` | Registro de eventos de auditoría. | `event`, `entity`, `level`, `meta jsonb`, secuencia `core.audit_logs_id_seq`. |
-| `core.dashboard_invoice_aggregates(p_from, p_to, p_query)` | RPC para dashboard (JSON). | Devuelve totales, buckets mensuales, status breakdown. Ejecuta con `security definer` y requiere índices previos. |
-| `core.get_customers_last_invoice(p_customer_ids uuid[])` | RPC auxiliar. | Devuelve `customer_id` + `last_invoice_at` (`max(created_at)`) para poblar `/customers` sin escanear todas las facturas. |
-| `core.is_admin()` | Helper para RLS. | Evalúa claims `admin` en JWT o rol `service_role`.
 
-## 4. Storage de facturas
-- Bucket privado configurado en Supabase (default `invoices`).
-- Ruta lógica: `<segmento_email>/AAAA/MM/DD/<invoiceId>.pdf`. El segmento de email se sanitiza en `lib/storage.ts` sustituyendo caracteres no permitidos.
-- Se espera adjuntar metadata `{ customer_id, actor_user_id }` en cada subida para cumplir las políticas de owner (`storage.objects`).
+### 3.1 Tablas principales
+| Tabla | Registros | Propósito | Campos clave |
+| --- | --- | --- | --- |
+| `core.customers` | 11 | Clientes vinculados a `auth.users` | `id uuid`, `user_id uuid`, `name`, `email`, `mobile_phone`, `is_active` |
+| `core.invoices` | 12 | Facturas y metadatos extraídos | FK `customer_id`, `storage_object_path`, `status`, `total_amount_eur`, `currency` |
+| `core.audit_logs` | 48 | Registro de eventos de auditoría | `event`, `entity`, `level`, `meta jsonb`, `actor_user_id` |
+| `core.offers` | 3 | Ofertas asociadas a facturas | FK `invoice_id`, `provider_name`, `storage_object_path` |
+
+### 3.2 Funciones RPC
+| Función | Propósito | Parámetros | Retorna |
+| --- | --- | --- | --- |
+| `core.dashboard_invoice_aggregates(p_from, p_to, p_query)` | Agregados para dashboard | `p_from date`, `p_to date`, `p_query text` | JSON con totales y breakdowns |
+| `core.get_customers_last_invoice(p_customer_ids)` | Última factura por cliente | `p_customer_ids uuid[]` | `customer_id`, `last_invoice_at` |
+| `core.is_admin()` | Verificación de permisos admin | Ninguno | `boolean` |
+
+### 3.3 Índices optimizados
+- `customers_user_id_idx` (customers.user_id)
+- `invoices_customer_id_idx` (invoices.customer_id) 
+- `invoices_status_idx` (invoices.status)
+- `audit_logs_entity_idx` (audit_logs.entity)
+- `audit_logs_created_at_idx` (audit_logs.created_at)
+- `offers_invoice_id_idx` (offers.invoice_id)
+- `offers_provider_name_idx` (offers.provider_name)
+
+### 3.4 Relaciones Foreign Key
+- `invoices.customer_id → customers.id` (CASCADE)
+- `offers.invoice_id → invoices.id` (CASCADE) 
+- `audit_logs.customer_id → customers.id` (SET NULL)
+
+## 4. Storage de facturas y ofertas
+
+### 4.1 Buckets configurados
+| Bucket | Tipo | Límite | Tipos permitidos | Registros |
+| --- | --- | --- | --- | --- |
+| `invoices` | Privado | Sin límite | Todos | 12 archivos |
+| `offers` | Privado | 10MB | application/pdf | 3 archivos |
+
+### 4.2 Estructura de rutas
+- **Facturas**: `<segmento_email>/AAAA/MM/DD/<invoiceId>.pdf`
+  - Ejemplo: `cliente.example.com/2025/01/15/uuid-factura.pdf`
+  - El segmento de email se sanitiza en `lib/storage.ts`
+- **Ofertas**: `<invoice_id>/<offer_id>.pdf`
+  - Ejemplo: `uuid-factura/uuid-oferta.pdf`
+  - Estructura más simple sin jerarquía temporal
+
+### 4.3 Metadata obligatoria
+- **Facturas**: `{ customer_id, actor_user_id, uploaded_at }`
+- **Ofertas**: `{ invoice_id, offer_id, actor_user_id, provider_name, uploaded_at }`
 
 ## 5. Autenticación y autorización
 - Autenticación mediante Supabase Magic Link; las páginas server usan `requireAdmin()` para redirigir a `/login` si la sesión no es administradora.

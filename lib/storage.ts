@@ -27,3 +27,9 @@ export function buildInvoiceStoragePath(invoiceId: string, email: string, issued
     segment,
   }
 }
+
+export function buildOfferStoragePath(invoiceId: string, offerId: string): { path: string } {
+  return {
+    path: `${invoiceId}/${offerId}.pdf`,
+  }
+}
